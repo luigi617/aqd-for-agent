@@ -1,5 +1,5 @@
 
-python src/main.py \
+python3 src/main.py \
     --generate_model 'gpt-5-nano' \
     --test_model 'qwen3:8b' \
     --preferred_definition 'input_data/preferred_definition.json' \
