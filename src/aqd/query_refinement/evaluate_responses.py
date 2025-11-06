@@ -1,14 +1,10 @@
 from enum import Enum
 from typing import List, Tuple
 
-from tqdm import tqdm
-from pipeline.misc.graph_common import *
-from pipeline.misc.model import get_basic_model
-from collections import defaultdict
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
-from src.aqd.query_refinement.query_refinement import QueryNode
-from src.models.model import get_model
+from aqd.schema import QueryNode
+from models.model import get_model
 
 EVAL_PROMPT = """
 You are an evaluator in a pipeline that assesses whether a given response belongs to a certain criteria relative to a query.
@@ -52,11 +48,13 @@ def get_preference_criteria_map(preferred_definition, unpreferred_definition):
     i = 0
     preference_criteria_map = {}
     for criteria in preferred_definition.values():
-        preference_criteria_map[f"V{i}"] = criteria
-        i += 1
+        for criterion in criteria:
+            preference_criteria_map[f"V{i}"] = criterion
+            i += 1
     for criteria in unpreferred_definition.values():
-        preference_criteria_map[f"V{i}"] = criteria
-        i += 1
+        for criterion in criteria:
+            preference_criteria_map[f"V{i}"] = criterion
+            i += 1
     return preference_criteria_map
 
 def get_preference_criteria_str(preference_criteria_map):
@@ -74,7 +72,6 @@ def evaluate_responses(
 
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
     preference_criteria_str = get_preference_criteria_str(preference_criteria_map)
-
     evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map))
 
     query = query_node.query

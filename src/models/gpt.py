@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from src.models.common import get_seed
+from models.common import get_seed
 
 
-def get_gpt(
+def get_openai(
     model_name: str,
     pydantic_model: Type[BaseModel],
     temperature: float = 0.1,

@@ -4,18 +4,10 @@ import random
 import json
 from pathlib import Path
 
-from aqd.query_refinement.filter_queries import filter_queries
-from aqd.query_refinement.misc_nodes import init_state, join_node, stopping_condition
-from aqd.query_refinement.generate_queries import generate_queries
-from aqd.query_refinement.generate_response import generate_response
-from aqd.query_refinement.evaluate_responses import evaluate_responses
-from aqd.query_refinement.modify_responses import modify_responses
-from aqd.query_refinement.reflective_mutation_workflow import reflective_mutation
-from aqd.query_refinement.refine_prompt_pool import refine_prompt_pool
-
 from dotenv import load_dotenv
 from args_parser import argument_parser
 from aqd.query_refinement.query_refinement import QueryRefinement
+from aqd.schema import QueryNode
 
 
 def set_seed(seed: int = 42):
@@ -48,14 +40,32 @@ def main():
 
     initial_prompt_pool = json.load(args.input_pool.open())
     prev_results = json.load(args.from_prev.open()) if args.from_prev and Path.exists(args.from_prev) else {}
+    
     products = json.load(args.products.open())
+    
     preferred_definition = json.load(args.preferred_definition.open())
     unpreferred_definition = json.load(args.unpreferred_definition.open())
     filtering_policy = args.filtering_policy.open().read()
 
+    target_model = args.target_model
+    filtering_model = args.generate_model
+    refinement_model = args.generate_model
+    evaluation_model = args.generate_model
+
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    QueryRefinement("what is the price of the tv?")
+    qn = QueryNode("what is the price of the tv?", products[0], ["manufacturer_suggested_retail_price"])
+    a = QueryRefinement(
+        qn,
+        target_model,
+        filtering_model,
+        refinement_model,
+        evaluation_model,
+        preferred_definition,
+        unpreferred_definition,
+        filtering_policy
+    )
+    a.run()
 
 
 if __name__ == "__main__":

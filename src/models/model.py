@@ -8,8 +8,9 @@ from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from langchain_core.exceptions import OutputParserException
-from src.models.deepseek import get_deepseek
-from src.models.ollama import get_ollama
+from models.deepseek import get_deepseek
+from models.ollama import get_ollama
+from models.gpt import get_openai
 
 
 
@@ -30,7 +31,7 @@ def _get_base_llm(
     if "deepseek" in model_name:
         return get_deepseek(model_name, pydantic_model, temperature, timeout)
     elif "gpt" in model_name:
-        return get_ollama(model_name, pydantic_model, temperature, timeout)
+        return get_openai(model_name, pydantic_model, temperature, timeout)
 
     raise RuntimeError("LLM not available for the given model_name")
 

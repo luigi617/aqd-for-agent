@@ -11,7 +11,7 @@ def argument_parser():
         --preferred_definition: path to preferred definition w/ criteria
         --unpreferred_definition: path to unpreferred definition w/ criteria
         --generate_model: path to generator (local/api) model
-        --test_model: path to test (local) model
+        --target_model: path to test (local) model
         --output_path: path to JSON to output results
     Optional arguments:
         --from_prev: path to previous results
@@ -56,7 +56,7 @@ def argument_parser():
         required=True,
     )
     parser.add_argument(
-        "--test_model",
+        "--target_model",
         type=str,
         help="path to test (local) model",
         required=True,

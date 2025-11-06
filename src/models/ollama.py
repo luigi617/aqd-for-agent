@@ -7,7 +7,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
-from src.models.common import check_ollama_running, get_seed
+from models.common import check_ollama_running, get_seed
 
 IS_OLLAMA_RUNNING = False
 

@@ -1,7 +1,7 @@
 
 python3 src/main.py \
     --generate_model 'gpt-5-nano' \
-    --test_model 'qwen3:8b' \
+    --target_model 'qwen3:8b' \
     --preferred_definition 'input_data/preferred_definition.json' \
     --unpreferred_definition 'input_data/unpreferred_definition.json' \
     --filtering_policy 'input_data/realism_definition.txt' \

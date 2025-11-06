@@ -5,7 +5,7 @@ class QueryNode:
     def __init__(self, query: str):
         self.query: str = query
         
-        self.is_filter_out: bool = False
+        self.is_filtered_out: bool = False
         self.filtering_reason: str = None
         
         self.response: str = None
@@ -29,7 +29,7 @@ class QueryRefinement:
         while queue:
             query_node = queue.popleft()
             query_node = self.filter_queries(query_node)
-            if query_node.is_filter_out: # query does not satisfy filterint policy
+            if query_node.is_filtered_out: # query does not satisfy filterint policy
                 continue
             query_node = self.generate_response(query_node)
             query_node = self.evaluate_responses(query_node)
