@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "preference_dataset_generator"
+version = "0.1.0"
+description = "Robust preference dataset for e-commerce agents"
+readme = "README.md"
+authors = [{ name = "Omar Yahia", email = "omar@seba3y.com" }]
+requires-python = ">=3.9"
+dependencies = [
+    "python-dotenv",
+    "tqdm",
+    "pandas",
+    "numpy",
+    "openai",
+    "langchain",
+    "langchain-core",
+    "langchain-openai",
+    "langchain-deepseek",
+    "langchain-huggingface",
+    "langchain-ollama",
+    "langgraph",
+    "sentence-transformers",
+    "transformers",
+    "scikit-learn",
+    "datasets",
+    "accelerate>=0.26.0",
+    "peft",
+    "trl",
+    "bitsandbytes",
+    "huggingface_hub",
+    "wandb"
+]
+
+[tool.setuptools.packages.find]
+include = ["preference_dataset_generator*"]
+
+[tool.wheel]
+include = ["preference_dataset_generator*"]
