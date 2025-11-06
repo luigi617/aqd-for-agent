@@ -4,6 +4,8 @@ from pipeline.misc.graph_common import *
 from pipeline.misc.model import get_basic_model
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from aqd.query_refinement.query_refinement import QueryNode
+from models.model import get_model
 
 TEST_PROMPT = """
 Provide a direct answer to the user's query based on the provided attributes.
@@ -17,48 +19,37 @@ User query:
 Instructions (follow all)
 - Do NOT mention field names or say “according to the attributes”.
 - Do not hallucinate any information not present.
+
+Output Format:
+Return the generated response to the query.
 """
 
 
-class TestResponseSchema(BaseModel):
+class ResponseSchema(BaseModel):
     response: str = Field(description="A generated response to the query.")
 
+def get_all_attribute_with_value(product):
+    attr_str = ""
+    for attr_name, attr_value in product.items():
+        attr_str += f"attribute: {attr_name}, value: {attr_value}\n"
+    return attr_str
+
 def generate_response(
-        state: GraphState, 
-        model_path: str, 
-        thread_n: int,
-    ) -> GraphState:
+        query_node: QueryNode,
+        model_path: str,
+    ) -> str:
 
-    # get model (sensitive since involves full product information)
-    test_chain = get_basic_model(model_path, TestResponseSchema, sensitive=True)
-    prompt = state["prompt_pool"][-1]        
-
-    state["prompts"][prompt] = state["prompts"].get(prompt, PromptState.get_default())
-
-    for i in tqdm(range(len(state['prompts'][prompt]['filtered_queries'])), desc="Generating responses"):
-        if not is_unfilled(state, 'responses', prompt, i):
-            # already has response
-            continue
-        
-        if state['prompts'][prompt]['filtered_queries'][i][0] == FILTERED:
-            # filtered query, skip
-            state["prompts"][prompt]["responses"].append("")
-            continue
-
-        query, _ = state['prompts'][prompt]['filtered_queries'][i]
-        product = state['prompts'][prompt]['products'][i]
-        
-
-        # build product information
-        attributes_str = get_attr_str(product)
-
-        # get response
-        response = test_chain(
-            TEST_PROMPT.format(attributes=attributes_str, query=query)
-        )['response']
-
-        # modify state
-        state["prompts"][prompt]["responses"].append(response)
+    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True)
     
+    query = query_node.query
+    product = query_node.product
+        
+    # build product information
+    attributes_str = get_all_attribute_with_value(product)
 
-    return state
+    # get response
+    response = generate_response_chain(
+        TEST_PROMPT.format(attributes=attributes_str, query=query)
+    )
+
+    return response["response"]

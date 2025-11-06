@@ -15,18 +15,7 @@ from aqd.query_refinement.refine_prompt_pool import refine_prompt_pool
 
 from dotenv import load_dotenv
 from args_parser import argument_parser
-
-# StateGraph workflow steps:
-# 1. init_state: Initialize the state with the prompt pool and previous results (if any).
-# 2. generate_queries: Fill in the templates from the prompt pool with product attributes.
-# 3. filter_queries: Filter out queries not satisfying filtering policy.
-# 4. generate_response: Generate responses to the queries using the test model.
-# 5. evaluate_responses: Evaluate the responses for preference using the preference criteria.
-# 6. modify_responses: Modify responses to improve them: preferred <-> unpreferred.
-# 7. reflective_mutation: Mutate prompts based on reflections from the evaluations.
-# 8. refine_prompt_pool: Refine the prompt pool based on the evaluations and modifications.
-# 9. Repeat steps 2-8 for a specified number of iterations or until convergence
-
+from aqd.query_refinement.query_refinement import QueryRefinement
 
 
 def set_seed(seed: int = 42):
@@ -66,7 +55,7 @@ def main():
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
 
-   
+    QueryRefinement("what is the price of the tv?")
 
 
 if __name__ == "__main__":

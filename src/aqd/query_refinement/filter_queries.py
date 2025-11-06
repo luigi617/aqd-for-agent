@@ -1,5 +1,6 @@
-from collections import defaultdict
 
+
+from typing import Tuple
 from tqdm import tqdm
 from pipeline.misc.graph_common import (
     GraphState,
@@ -7,55 +8,45 @@ from pipeline.misc.graph_common import (
     is_unfilled,
     FILTERED
 )
-from pipeline.misc.model import get_basic_model
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from aqd.query_refinement.query_refinement import QueryNode
+from models.model import get_model
 
 
 FILTER_QUERY_PROMPT = """\
-You are a filter that decides whether the user's query satisfies the filtering definition.
+You are a filter that decides whether the user's query satisfies the filtering policy.
 
 Query:
 {query}
 
-Filtering definition:
+Filtering policy:
 {filtering_policy}
+
+Output Format:
+Return the reasoning that explains whether the query satisfies the filtering policy, followed by the boolean value True if the query satisfies the filtering policy, and False otherwise.
 """
 
 class FilteredQuerySchema(BaseModel):
-    reasoning: str = Field(description="reasoning behind the query satisfing or not satisfying the filtering definition.")
-    satisfy_filter: bool = Field(description="True if the query satisfies the filtering definition, False otherwise.")
+    reasoning: str = Field(description="reasoning behind the query satisfing or not satisfying the filtering policy.")
+    satisfy_filter: bool = Field(description="True if the query satisfies the filtering policy, False otherwise.")
 
 def filter_queries(
-        state: GraphState, 
-        model_path: str, 
-        thread_n: int,
+        query_node: QueryNode,
+        model_path: str,
         filtering_policy: str,
-    ) -> GraphState:
+    ) -> tuple[bool, str]:
     """
-    Filters queries based on realism definition.
-    Returns updates to state with new filtered queries.
+    Filters queries based on filtering policy definition.
     """
-    query_chain = get_basic_model(model_path, FilteredQuerySchema)
-    # get current queries responsible by thread
-    prompt = state["prompt_pool"][-1]
-    
-    state["prompts"][prompt] = state["prompts"].get(prompt, PromptState.get_default())
+    filter_query_chain = get_model(model_path, FilteredQuerySchema)
 
-    # filter queries and update state
-    for i in tqdm(range(len(state['prompts'][prompt]['template_queries'])), desc="Filtering queries"):
-        if not is_unfilled(state, 'filtered_queries', prompt, i):
-            # already filtered
-            continue
-        query = state['prompts'][prompt]['template_queries'][i]
-
-        decision = query_chain(
-            FILTER_QUERY_PROMPT.format(
-                query=query,
-                filtering_policy=filtering_policy
-            )
+    query = query_node.query
+    decision = filter_query_chain(
+        FILTER_QUERY_PROMPT.format(
+            query=query,
+            filtering_policy=filtering_policy
         )
-        filtered_query = query if decision['satisfy_filter'] else FILTERED
-        state["prompts"][prompt]['filtered_queries'].append((filtered_query, decision['reasoning']))
+    )
     
-    return state
+    return decision['satisfy_filter'], decision['reasoning']

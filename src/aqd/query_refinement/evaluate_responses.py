@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Tuple
 
 from tqdm import tqdm
 from pipeline.misc.graph_common import *
@@ -7,6 +7,8 @@ from pipeline.misc.model import get_basic_model
 from collections import defaultdict
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from src.aqd.query_refinement.query_refinement import QueryNode
+from src.models.model import get_model
 
 EVAL_PROMPT = """
 You are an evaluator in a pipeline that assesses whether a given response belongs to a certain criteria relative to a query.
@@ -29,66 +31,68 @@ Instructions (follow all):
 - Only select criteria that are clearly supported by evidence in the response.
 - If you think the response does not belong to any criteria, leave the set empty.
 - Provide a concise explanation of why you selected (or did not select) the criteria
+
+Output format:
+Return the reasoning for all criteria, both those chosen and not chosen, followed by a list of criteria whose values meet the selection condition.
 """
 
 # dynamic function to create pydantic schema from preference criteria
 
-def get_schema(preference_criteria: list[str]):
+def get_schema(preference_criteria_map: dict):
     # Build an enum whose *values* are your strings; names are safe placeholders.
-    CriteriaEnum = Enum("CriteriaEnum", {f"V{i}": v for i, v in enumerate(preference_criteria)})
+    CriteriaEnum = Enum("CriteriaEnum", {k: v for k, v in preference_criteria_map.items()})
 
     class EvalResponseSchema(BaseModel):
         reasoning: str = Field(description="Reasoning for criteria to choose")
-        # Use a list, not a set (uniqueItems is disallowed by OpenAI)
         criteria: List[CriteriaEnum] = Field(description="0 or more chosen criteria from the allowed list")
 
     return EvalResponseSchema
 
+def get_preference_criteria_map(preferred_definition, unpreferred_definition):
+    i = 0
+    preference_criteria_map = {}
+    for criteria in preferred_definition.values():
+        preference_criteria_map[f"V{i}"] = criteria
+        i += 1
+    for criteria in unpreferred_definition.values():
+        preference_criteria_map[f"V{i}"] = criteria
+        i += 1
+    return preference_criteria_map
+
+def get_preference_criteria_str(preference_criteria_map):
+    preference_criteria_str = ""
+    for preference_key, preference_value in preference_criteria_map.items():
+        preference_criteria_str += f"key: {preference_key}, value: {preference_value}\n"
+    return preference_criteria_str
+    
 def evaluate_responses(
-    state: GraphState, 
+    query_node: QueryNode,
     model_path: str,  
-    thread_n: int,
     preferred_definition: dict,
     unpreferred_definition: dict,
-) -> GraphState:
+) -> Tuple[List[Tuple[str, str]], str]:
 
-    preference_criteria_list = []
-    for criteria in preferred_definition.values():
-        preference_criteria_list.extend(criteria)
-    for criteria in unpreferred_definition.values():
-        preference_criteria_list.extend(criteria)
-    test_chain = get_basic_model(model_path, get_schema(preference_criteria_list))
+    preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
+    preference_criteria_str = get_preference_criteria_str(preference_criteria_map)
 
-    prompt = state["prompt_pool"][-1]
-    state["prompts"][prompt] = state["prompts"].get(prompt, PromptState.get_default())
+    evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map))
 
-    for i in tqdm(range(len(state['prompts'][prompt]['responses'])), desc="Evaluating responses"):
-        if state["prompts"][prompt]["filtered_queries"][i][0] == FILTERED:
-            state["prompts"][prompt]["response_evals"].append(([], "Query was filtered"))
-            continue
-        if not is_unfilled(state, 'response_evals', prompt, i):
-            # already has eval
-            continue
-        query, _ = state['prompts'][prompt]['filtered_queries'][i]
-        response = state['prompts'][prompt]['responses'][i]
-
-        # get violated criteria
-        response = test_chain(
-            EVAL_PROMPT.format(
-                query=query,
-                response=response,
-                criteria=preference_criteria_list,
-            )
+    query = query_node.query
+    response = query_node.response
+        
+    # get violated criteria
+    evaluation = evaluate_response_chain(
+        EVAL_PROMPT.format(
+            query=query,
+            response=response,
+            criteria=preference_criteria_str,
         )
-        # see which category/score violated criteria fall under
-        chosen_criteria = []
-        for criterion in response['criteria']:
-            for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
-                if criterion.value in criteria:
-                    chosen_criteria.append((category, criterion.value))
+    )
+    # see which category/score violated criteria fall under
+    chosen_criteria = []
+    for criterion in evaluation['criteria']:
+        for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
+            if criterion.value in criteria:
+                chosen_criteria.append((category, criterion.value))
 
-        # update state
-        state["prompts"][prompt]["response_evals"].append((chosen_criteria, response['reasoning']))
-    
-
-    return state
+    return chosen_criteria, evaluation["reasoning"]
