@@ -1,15 +1,12 @@
 from collections import deque
 from typing import List, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from aqd.query_refinement.filter_queries import filter_queries
 from aqd.query_refinement.generate_response import generate_response
 from aqd.query_refinement.evaluate_responses import evaluate_responses
-from aqd.schema import QueryNode
-
-class TreeNode:
-    def __init__(self, value: QueryNode, children: Optional[List["TreeNode"]] = None):
-        self.value = value
-        self.children = children if children is not None else []
+from aqd.schema import QueryNode, QueryRefinementTreeNode
+from aqd.query_refinement.refine_query import refine_query
 
 class QueryRefinement:
     
@@ -32,36 +29,65 @@ class QueryRefinement:
         self.filtering_policy = filtering_policy
         pass
 
-    def run(self, max_depth = 3, budget = None):
+    def _process_node(self, tree_node, allow_refine: bool):
+        query_node = tree_node.value
+
+        query_node = self.filter_queries(query_node)
+        if getattr(query_node, "is_filtered_out", False):
+            tree_node.value = query_node  # keep the filtered state
+            return tree_node, []
+
+        query_node = self.generate_response(query_node)
+        query_node = self.evaluate_responses(query_node)
+        query_node = self.modify_responses(query_node)
+
+        tree_node.value = query_node
+
+        if not allow_refine:
+            return tree_node, []
+
+        next_queries = self.refine_query(tree_node)
+        return tree_node, next_queries
+
+    def run(self, max_depth = 3, budget = None, n_workers = 5):
         """
             TAP algorithm
             https://arxiv.org/pdf/2312.02119
         """
-        root = TreeNode(self.root)
+        root = QueryRefinementTreeNode(self.root)
 
-        queue = deque([(root, 0)])
+        current_level = [root]
+        depth = 0
 
+        with ThreadPoolExecutor(max_workers = n_workers) as pool:
+            while current_level:
+                allow_refine = depth < max_depth
 
-        while queue:
-            tree_node, depth = queue.popleft()
-            query_node = tree_node.value
+                futures = [
+                    pool.submit(self._process_node, node, allow_refine)
+                    for node in current_level
+                ]
 
-            query_node = self.filter_queries(query_node)
-            if query_node.is_filtered_out: # query does not satisfy filterint policy
-                continue
-            query_node = self.generate_response(query_node)
-            query_node = self.evaluate_responses(query_node)
-            query_node = self.modify_responses(query_node)
+                next_level = []
+                for fut in as_completed(futures):
+                    tree_node, next_queries = fut.result()
 
-            if depth >= max_depth:
-                continue
+                    if allow_refine and next_queries:
+                        for q in next_queries:
+                            child = QueryRefinementTreeNode(q, parent=tree_node)
+                            tree_node.children.append(child)
+                            next_level.append(child)
 
-            next_queries = self.refine_query(query_node)
-            for next_query in next_queries:
-                new_tree_node = TreeNode(next_query)
-                tree_node.children.append(new_tree_node)
-                queue.append((new_tree_node, depth + 1))
+                depth += 1
+                current_level = next_level
         
+        print("*"*30)
+        print(root.value.to_dict())
+        for c in root.children:
+            print("*"*30)
+            print(c.value.to_dict())
+            print("*"*30)
+            print(c.children)
         return root
             
         
@@ -92,8 +118,18 @@ class QueryRefinement:
         # TODO: implement me
         return query_node
     
-    def refine_query(self, query_node: QueryNode) -> List[QueryNode]:
-        # TODO: implement me
-        return []
+    def refine_query(self, tree_node: QueryRefinementTreeNode) -> List[QueryNode]:
+        query_node = tree_node.value
+        proposed_queries: List[Tuple[str, str]] = refine_query(tree_node,
+                                                    self.refinement_model,
+                                                    self.preferred_definition,
+                                                    self.unpreferred_definition,
+                                                    self.filtering_policy)
+        next_query_nodes = []
+        for query, improvement in proposed_queries:
+            new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes)
+            new_query_node.query_improvement = improvement
+            next_query_nodes.append(new_query_node)
+        return next_query_nodes
     
 

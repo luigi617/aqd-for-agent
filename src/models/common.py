@@ -7,7 +7,6 @@ def get_seed():
     return SEED
 
 def check_ollama_running(model_path: str) -> None:
-    global IS_OLLAMA_RUNNING
     """Raise error if Ollama or the requested model is not running."""
     try:
         resp = requests.get("http://localhost:11434/api/tags", timeout=2)
@@ -19,4 +18,3 @@ def check_ollama_running(model_path: str) -> None:
     except Exception as e:
         print(f"Ollama is not running or unreachable: {e}")
         raise RuntimeError(f"Ollama is not running or unreachable: {e}")
-    IS_OLLAMA_RUNNING = True

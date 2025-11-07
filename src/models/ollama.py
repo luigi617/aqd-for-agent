@@ -19,9 +19,12 @@ def get_ollama(
     temperature: float = 0.1,
     timeout: int = 120,
 ):
-    
+    global IS_OLLAMA_RUNNING
+
     if not IS_OLLAMA_RUNNING:
         check_ollama_running(model_name)
+    
+    IS_OLLAMA_RUNNING = True
 
     SEED = get_seed()
     if SEED is not None:

@@ -1,8 +1,10 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 class QueryNode:
     def __init__(self, query: str, product: dict, attributes: List):
+        self.query_improvement: Optional[str] = None
+        
         self.product = product
         self.attributes = attributes
         
@@ -24,4 +26,16 @@ class QueryNode:
             "response": self.response,
             "evaluation": self.evaluation,
             "evaluation_reason": self.evaluation_reason,
+            "query_improvement": self.query_improvement,
         }
+
+
+class QueryRefinementTreeNode:
+    def __init__(self,
+                 value: QueryNode,
+                 parent: Optional["QueryRefinementTreeNode"] = None,
+                 children: Optional[List["QueryRefinementTreeNode"]] = None):
+        
+        self.value = value
+        self.parent = parent
+        self.children = children if children is not None else []

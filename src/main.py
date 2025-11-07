@@ -54,7 +54,7 @@ def main():
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    qn = QueryNode("what is the price of the tv?", products[0], ["manufacturer_suggested_retail_price"])
+    qn = QueryNode("what is the price of the vacuum?", products[0], ["manufacturer_suggested_retail_price"])
     a = QueryRefinement(
         qn,
         target_model,
@@ -65,7 +65,7 @@ def main():
         unpreferred_definition,
         filtering_policy
     )
-    a.run()
+    a.run(max_depth=1)
 
 
 if __name__ == "__main__":

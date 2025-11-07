@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from aqd.schema import QueryNode
 from models.model import get_model
 
-TEST_PROMPT = """
+RESPONSE_GEN_PROMPT = """
 Provide a direct answer to the user's query based on the provided attributes.
 
 Product attributes:
@@ -45,7 +45,7 @@ def generate_response(
 
     # get response
     response = generate_response_chain(
-        TEST_PROMPT.format(attributes=attributes_str, query=query)
+        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query)
     )
 
     return response["response"]
