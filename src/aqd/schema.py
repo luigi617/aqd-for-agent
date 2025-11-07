@@ -1,26 +1,54 @@
+from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
+
 class PromptNode:
-    def __init__(self, prompt: str, reason: Optional[str] = None):
-        self.reason: Optional[str] = reason
+    def __init__(self, prompt: str, improvement_reason: Optional[str] = None):
+        self.improvement_reason: Optional[str] = improvement_reason
         self.prompt: str = prompt
         self.queries: List[QueryNode] = []
 
         self.query_refinement_map: Dict[QueryNode, TreeNode] = {}
 
         self.query_filter_reason: str = ""
-        self.query_filter_contributing_prompt_patterns: str = ""
-        self.query_filter_improvement_suggestions: str = ""
+        self.query_filter_contributing_prompt_patterns: List[str] = ""
+        self.query_filter_improvement_suggestions: List[str] = ""
 
         self.unpreferred_response_reason: str = ""
-        self.unpreferred_response_contributing_prompt_patterns: str = ""
-        self.unpreferred_response_improvement_suggestions: str = ""
+        self.unpreferred_response_contributing_prompt_patterns: List[str] = ""
+        self.unpreferred_response_improvement_suggestions: List[str] = ""
 
     def to_dict(self) -> dict:
         return {
-            "prompt": self.query,
-            "queries": [query.to_dict() for query in self.queries],
+            "improvement_reason": self.improvement_reason,
+            "prompt": self.prompt,
+            "queries": [self.query_to_json(self.query_refinement_map[query]) for query in self.queries],
+            
+            "query_filter_reason": self.query_filter_reason,
+            "query_filter_contributing_prompt_patterns": self.query_filter_contributing_prompt_patterns,
+            "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
+
+            "unpreferred_response_reason": self.unpreferred_response_reason,
+            "unpreferred_response_contributing_prompt_patterns": self.unpreferred_response_contributing_prompt_patterns,
+            "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
         }
+    
+    def query_to_json(self, query_tree_node: "TreeNode"):
+        if not query_tree_node: return []
+        res = []
+        node_id = 0
+        queue = deque([(query_tree_node, None)])
+        while queue:
+            cur_query_tree_node, parent_id = queue.popleft()
+            query_node: QueryNode = cur_query_tree_node.value
+            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **query_node.to_dict()}
+            res.append(prompt_row)
+
+            for next_query_tree_node in cur_query_tree_node.children:
+                queue.append((next_query_tree_node, node_id))
+
+            node_id += 1
+        return res
 
 class QueryNode:
     def __init__(self, query: str, product: dict, attributes: List, query_improvement: Optional[str] = None):
@@ -42,10 +70,11 @@ class QueryNode:
     def to_dict(self) -> dict:
         return {
             "query": self.query,
+            "attributes": self.attributes,
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,
             "response": self.response,
-            "evaluation": self.evaluation,
+            "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_improvement": self.query_improvement,
         }
@@ -60,3 +89,5 @@ class TreeNode:
         self.value = value
         self.parent = parent
         self.children = children if children is not None else []
+
+    

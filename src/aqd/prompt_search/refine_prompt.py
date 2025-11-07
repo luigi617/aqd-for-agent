@@ -2,7 +2,7 @@
 from typing import List, Optional, Tuple
 from pydantic import Field, BaseModel
 from aqd.schema import PromptNode, TreeNode
-from src.models.model import get_model
+from models.model import get_model
 
 
 REFLECTIVE_PROMPT = """
@@ -107,7 +107,7 @@ def refine_prompt(
 
         new_prompt = reflect_chain(
             REFLECTIVE_PROMPT.format(
-                current_prompts = prompt, 
+                current_prompt = prompt, 
                 filter_feedback_reasoning = filter_feedback_reason,
                 filter_feedback_contributing_prompt_patterns = filter_feedback_contributing_prompt_patterns,
                 filter_feedback_improvement_suggestions = filter_feedback_improvement_suggestions,
@@ -118,6 +118,6 @@ def refine_prompt(
             )
         )
 
-        proposed_prompts.append(new_prompt['new_prompts'], new_prompt["reflection"])
+        proposed_prompts.append((new_prompt['new_prompts'], new_prompt["reflection"]))
 
     return proposed_prompts

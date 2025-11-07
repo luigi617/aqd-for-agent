@@ -38,7 +38,7 @@ class QueryFilterFeedbackSchema(BaseModel):
     )
     
     improvement_suggestions: List[str] = Field(
-        default=list,
+        default_factory=list,
         description="Guidance on how to refine or reword the prompt to prevent queries to be filtered out."
     )
 

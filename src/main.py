@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 
 from dotenv import load_dotenv
-from args_parser import argument_parser
+from args_parser import Argument, argument_parser
 from aqd.query_refinement.query_refinement import QueryRefinement
 from aqd.schema import QueryNode
+from aqd.prompt_search.prompt_search import PromptSearch
 
 
 def set_seed(seed: int = 42):
@@ -33,39 +34,41 @@ def main():
     load_dotenv(override=True)
 
     # Parse arguments
-    args = argument_parser()
+    args: Argument = argument_parser()
 
     if args.seed is not None:
         set_seed(args.seed)
 
-    initial_prompt_pool = json.load(args.input_pool.open())
-    prev_results = json.load(args.from_prev.open()) if args.from_prev and Path.exists(args.from_prev) else {}
-    
-    products = json.load(args.products.open())
-    
-    preferred_definition = json.load(args.preferred_definition.open())
-    unpreferred_definition = json.load(args.unpreferred_definition.open())
-    filtering_policy = args.filtering_policy.open().read()
+    result = []
+    for init_prompt in args.initial_prompt_pool:
+        ps = PromptSearch(
+            prompt=init_prompt,
+            products=args.products,
+            n_queries=args.n_queries,
+            generate_model=args.generate_model,
+            refinement_model=args.refinement_model,
+            target_model=args.target_model,
+            filtering_model=args.filtering_model,
+            evaluation_model=args.evaluation_model,
+            preferred_definition=args.preferred_definition,
+            unpreferred_definition=args.unpreferred_definition,
+            filtering_policy=args.filtering_policy,
 
-    target_model = args.target_model
-    filtering_model = args.generate_model
-    refinement_model = args.generate_model
-    evaluation_model = args.generate_model
+            n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
+            n_query_refiment_iterations=args.n_query_refiment_iterations,
+            n_query_refiment_children=args.n_query_refiment_children,
+            n_thread_queries=args.n_thread_queries,
+            n_thread_query_refiment=args.n_thread_query_refiment,
+        )
+
+        ps.run(max_depth=args.n_prompt_refinemnet_iterations)
+        prompt_search_res = ps.result_to_json()
+
+        result.extend(prompt_search_res)
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    qn = QueryNode("what is the price of the vacuum?", products[0], ["manufacturer_suggested_retail_price"])
-    a = QueryRefinement(
-        qn,
-        target_model,
-        filtering_model,
-        refinement_model,
-        evaluation_model,
-        preferred_definition,
-        unpreferred_definition,
-        filtering_policy
-    )
-    a.run(max_depth=1)
+    with open(args.output_path, 'w') as f:
+        json.dump(result, f, indent=4) 
 
 
 if __name__ == "__main__":

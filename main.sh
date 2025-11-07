@@ -8,8 +8,10 @@ python3 src/main.py \
     --input_pool 'input_data/seed_prompts.json' \
     --products 'input_data/walmart_products.json' \
     --output_path 'output_data/gpt5-nano/results.json' \
-    --from_prev 'output_data/gpt5-nano/results.json' \
-    --n_queries 1 \
-    --n_threads 1 \
-    --n_iterations 5 \
+    --n_queries 5 \
+    --n_prompt_refinemnet_iterations 3 \
+    --n_prompt_refinemnet_children 3 \
+    --n_query_refiment_iterations 3 \
+    --n_query_refiment_children 3 \
+    --n_threads 45 \
     --seed 42 \

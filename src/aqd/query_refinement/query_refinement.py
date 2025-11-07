@@ -15,7 +15,8 @@ class QueryRefinement:
                  refinement_model, evaluation_model,
                  preferred_definition,
                  unpreferred_definition,
-                 filtering_policy):
+                 filtering_policy,
+                 n_query_refiment_children):
         
         self.root: QueryNode = query_node
 
@@ -27,7 +28,8 @@ class QueryRefinement:
         self.preferred_definition = preferred_definition
         self.unpreferred_definition = unpreferred_definition
         self.filtering_policy = filtering_policy
-        pass
+        
+        self.n_query_refiment_children = n_query_refiment_children
 
     def _process_node(self, tree_node, allow_refine: bool):
         query_node = tree_node.value
@@ -81,13 +83,6 @@ class QueryRefinement:
                 depth += 1
                 current_level = next_level
         
-        # print("*"*30)
-        # print(root.value.to_dict())
-        # for c in root.children:
-        #     print("*"*30)
-        #     print(c.value.to_dict())
-        #     print("*"*30)
-        #     print(c.children)
         return root
             
         
@@ -124,7 +119,8 @@ class QueryRefinement:
                                                     self.refinement_model,
                                                     self.preferred_definition,
                                                     self.unpreferred_definition,
-                                                    self.filtering_policy)
+                                                    self.filtering_policy,
+                                                    self.n_query_refiment_children)
         next_query_nodes = []
         for query, improvement in proposed_queries:
             new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_improvement=improvement)

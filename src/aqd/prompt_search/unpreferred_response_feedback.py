@@ -36,7 +36,7 @@ class UnpreferredResponseFeedbackSchema(BaseModel):
         description="Phrases/rules in the prompt that generate queries that promote non-preferred responses."
     )
     improvement_suggestions: List[str] = Field(
-        default=list,
+        default_factory=list,
         description="Guidance on how to refine the prompt to generate user queries that are more likely to produce unpreferred response."
     )
 
@@ -46,9 +46,9 @@ def get_unpreferred_criteria_str(unpreferred_definition):
         unpreferred_criteria.extend(criteria)
     return "\n".join([f"- {c}" for c in unpreferred_criteria])
 
-def get_unpreferred_response_str(query_nodes: List[QueryNode], unpreferred_definition: dict):
+def get_unpreferred_response_str(prompt_node: PromptNode, unpreferred_definition: dict):
     unpreferred_builder = ""
-    for query_node in query_nodes:
+    for query_node in prompt_node.queries:
         if not query_node.is_filtered_out:
             continue
 
