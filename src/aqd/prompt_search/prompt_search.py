@@ -46,7 +46,6 @@ class PromptSearch:
         self.n_thread_queries = n_thread_queries
         self.n_thread_query_refiment = n_thread_query_refiment
 
-        self.result: Optional[TreeNode] = None
 
     def _run_single_query_refinement(self, query_node):
         query_refinement = QueryRefinement(
@@ -116,7 +115,7 @@ class PromptSearch:
 
                 depth += 1
                 current_level = next_level
-        self.result = root
+        return root
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
         queries = generate_queries(prompt_node, self.generate_model, self.products, self.n_queries)
@@ -160,8 +159,8 @@ class PromptSearch:
 
         return next_prompt_nodes
 
-    def result_to_json(self):
-        root = self.result
+    def result_to_json(self, result: TreeNode):
+        root = result
         if not root: return []
         res = []
         node_id = 0
@@ -177,3 +176,5 @@ class PromptSearch:
 
             node_id += 1
         return res
+    
+    

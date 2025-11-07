@@ -30,6 +30,10 @@ def set_seed(seed: int = 42):
 
     print(f"✅ Random seed set to {seed}")
 
+def save_result(result: list, output_path):
+    with open(output_path, 'w') as f:
+        json.dump(result, f, indent=4)
+
 def main():
     load_dotenv(override=True)
 
@@ -40,7 +44,7 @@ def main():
         set_seed(args.seed)
 
     result = []
-    for init_prompt in args.initial_prompt_pool:
+    for init_prompt, index in enumerate(args.initial_prompt_pool):
         ps = PromptSearch(
             prompt=init_prompt,
             products=args.products,
@@ -60,15 +64,14 @@ def main():
             n_thread_query_refiment=args.n_thread_query_refiment,
         )
 
-        ps.run(max_depth=args.n_prompt_refinemnet_iterations)
-        prompt_search_res = ps.result_to_json()
+        prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
+        prompt_search_res_json = ps.result_to_json(prompt_search_res)
+        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
+        save_result(prompt_search_res_json, save_iter_path)
 
         result.extend(prompt_search_res)
 
-    args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output_path, 'w') as f:
-        json.dump(result, f, indent=4) 
-
+    save_result(result, args.output_path)
 
 if __name__ == "__main__":
     main()
