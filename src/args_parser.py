@@ -16,7 +16,6 @@ class Argument:
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
         self.n_prompt_refinemnet_children = args.n_prompt_refinemnet_children
-        self.n_query_refiment_iterations = args.n_query_refiment_iterations
         self.n_query_refiment_children = args.n_query_refiment_children
 
         # divide threads into different place
@@ -104,13 +103,6 @@ def argument_parser():
         type=int,
         default=3,
         help="number of children in the tree of prompt optimization",
-        required=False,
-    )
-    parser.add_argument(
-        "--n_query_refiment_iterations",
-        type=int,
-        default=3,
-        help="number of iterations of query refinement",
         required=False,
     )
     parser.add_argument(

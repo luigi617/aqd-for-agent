@@ -2,7 +2,6 @@ from enum import Enum
 from typing import List, Tuple
 
 from pydantic import Field, BaseModel
-from pydantic import BaseModel
 from aqd.schema import QueryNode
 from models.model import get_model
 
@@ -29,7 +28,7 @@ Instructions (follow all):
 - Provide a concise explanation of why you selected (or did not select) the criteria
 
 Output format:
-Return the reasoning for all chosen criteria, followed by a list of criteria whose values meet the selection condition.
+Return the reasoning for all selected criteria, then list the criteria that apply to the response.
 """
 
 # dynamic function to create pydantic schema from preference criteria

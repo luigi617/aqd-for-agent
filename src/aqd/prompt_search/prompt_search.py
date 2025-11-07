@@ -24,7 +24,6 @@ class PromptSearch:
                  filtering_policy,
 
                  n_prompt_refinemnet_children,
-                 n_query_refiment_iterations,
                  n_query_refiment_children,
                  n_thread_queries,
                  n_thread_query_refiment):
@@ -43,7 +42,6 @@ class PromptSearch:
         self.filtering_policy = filtering_policy
 
         self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
-        self.n_query_refiment_iterations = n_query_refiment_iterations
         self.n_query_refiment_children = n_query_refiment_children
         self.n_thread_queries = n_thread_queries
         self.n_thread_query_refiment = n_thread_query_refiment
@@ -62,9 +60,7 @@ class PromptSearch:
             filtering_policy=self.filtering_policy,
             n_query_refiment_children=self.n_query_refiment_children,
         )
-        return query_node, query_refinement.run(
-            max_depth=self.n_query_refiment_iterations, 
-            n_workers=self.n_thread_query_refiment)
+        return query_node, query_refinement.run(n_workers=self.n_thread_query_refiment)
 
     def _process_node(self, tree_node, allow_refine: bool):
         prompt_node: PromptNode = tree_node.value
@@ -149,7 +145,13 @@ class PromptSearch:
         return prompt_node
 
     def refine_prompt(self, prompt_node: PromptNode) -> List[PromptNode]:
-        new_promtps = refine_prompt(prompt_node, self.refinement_model, self.n_prompt_refinemnet_children)
+        new_promtps = refine_prompt(
+            prompt_node,
+            self.refinement_model,
+            self.preferred_definition,
+            self.unpreferred_definition,
+            self.n_prompt_refinemnet_children
+        )
         
         next_prompt_nodes = []
         for prompt, improvement_reason in new_promtps:

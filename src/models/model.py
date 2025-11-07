@@ -40,7 +40,7 @@ def get_model(
     pydantic_model: Type[BaseModel],
     temperature: float = 0.1,
     sensitive: bool = False,
-    retries: int = 3, # -1 for infinite retries
+    retries: int = 1, # -1 for infinite retries
     base_delay: float = 1.5,
     max_delay: float = 30.0,
     timeout: int = 120,
@@ -71,12 +71,8 @@ def get_model(
                 model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
                 return model_obj.model_dump()
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
-                print("*"*30)
-                print("LLM: ", model_name, "\nError: ", str(e))
                 last_exc = e
             except Exception as e:
-                print("*"*30)
-                print("LLM: ", model_name, "\nError: ", str(e))
                 last_exc = e
             
             attempt += 1
