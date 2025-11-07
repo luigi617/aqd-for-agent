@@ -29,7 +29,7 @@ Instructions (follow all):
 - Provide a concise explanation of why you selected (or did not select) the criteria
 
 Output format:
-Return the reasoning for all criteria, both those chosen and not chosen, followed by a list of criteria whose values meet the selection condition.
+Return the reasoning for all chosen criteria, followed by a list of criteria whose values meet the selection condition.
 """
 
 # dynamic function to create pydantic schema from preference criteria
@@ -40,7 +40,10 @@ def get_schema(preference_criteria_map: dict):
 
     class EvalResponseSchema(BaseModel):
         reasoning: str = Field(description="Reasoning for criteria to choose")
-        criteria: List[CriteriaEnum] = Field(description="0 or more chosen criteria from the allowed list")
+        criteria: List[CriteriaEnum] = Field(
+            default_factory=list,
+            description="0 or more chosen criteria from the allowed list"
+        )
 
     return EvalResponseSchema
 
@@ -69,6 +72,9 @@ def evaluate_responses(
     preferred_definition: dict,
     unpreferred_definition: dict,
 ) -> Tuple[List[Tuple[str, str]], str]:
+    """
+    Evaluate response
+    """
 
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
     preference_criteria_str = get_preference_criteria_str(preference_criteria_map)

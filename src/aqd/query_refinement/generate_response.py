@@ -34,6 +34,9 @@ def generate_response(
         query_node: QueryNode,
         model_path: str,
     ) -> str:
+    """
+    Generate response
+    """
 
     generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True)
     

@@ -2,7 +2,7 @@ from typing import List, Tuple
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
 from models.model import get_model
-from aqd.schema import QueryRefinementTreeNode
+from aqd.schema import TreeNode
 
 
 OBJECTIVE = "Reply to the query, given access to all information about the product"
@@ -49,7 +49,7 @@ def get_preference_definition_str(preference_definition: dict):
         preferred_criteria.extend(criteria)
     return "\n".join([f"- {criterion}" for criterion in preferred_criteria])
 
-def get_historical_queries_with_evaluation(tree_node: QueryRefinementTreeNode):
+def get_historical_queries_with_evaluation(tree_node: TreeNode):
     historical_queries_with_evaluation_str = ""
     cur_node = tree_node
     while cur_node is not None:
@@ -84,7 +84,7 @@ def get_previous_proposed_queries(proposed_queries: List[Tuple[str, str]]) -> st
 
 
 def refine_query(
-        tree_node: QueryRefinementTreeNode,
+        tree_node: TreeNode,
         model_path: str,
         preferred_definition: dict,
         unpreferred_definition: dict,

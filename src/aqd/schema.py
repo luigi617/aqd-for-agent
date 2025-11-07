@@ -1,9 +1,30 @@
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+class PromptNode:
+    def __init__(self, prompt: str, reason: Optional[str] = None):
+        self.reason: Optional[str] = reason
+        self.prompt: str = prompt
+        self.queries: List[QueryNode] = []
+
+        self.query_refinement_map: Dict[QueryNode, TreeNode] = {}
+
+        self.query_filter_reason: str = ""
+        self.query_filter_contributing_prompt_patterns: str = ""
+        self.query_filter_improvement_suggestions: str = ""
+
+        self.unpreferred_response_reason: str = ""
+        self.unpreferred_response_contributing_prompt_patterns: str = ""
+        self.unpreferred_response_improvement_suggestions: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "prompt": self.query,
+            "queries": [query.to_dict() for query in self.queries],
+        }
 
 class QueryNode:
-    def __init__(self, query: str, product: dict, attributes: List):
-        self.query_improvement: Optional[str] = None
+    def __init__(self, query: str, product: dict, attributes: List, query_improvement: Optional[str] = None):
+        self.query_improvement: Optional[str] = query_improvement
         
         self.product = product
         self.attributes = attributes
@@ -30,11 +51,11 @@ class QueryNode:
         }
 
 
-class QueryRefinementTreeNode:
+class TreeNode:
     def __init__(self,
-                 value: QueryNode,
-                 parent: Optional["QueryRefinementTreeNode"] = None,
-                 children: Optional[List["QueryRefinementTreeNode"]] = None):
+                 value: Any,
+                 parent: Optional["TreeNode"] = None,
+                 children: Optional[List["TreeNode"]] = None):
         
         self.value = value
         self.parent = parent

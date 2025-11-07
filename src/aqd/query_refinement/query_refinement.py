@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from aqd.query_refinement.filter_queries import filter_queries
 from aqd.query_refinement.generate_response import generate_response
 from aqd.query_refinement.evaluate_responses import evaluate_responses
-from aqd.schema import QueryNode, QueryRefinementTreeNode
+from aqd.schema import QueryNode, TreeNode
 from aqd.query_refinement.refine_query import refine_query
 
 class QueryRefinement:
@@ -33,7 +33,7 @@ class QueryRefinement:
         query_node = tree_node.value
 
         query_node = self.filter_queries(query_node)
-        if getattr(query_node, "is_filtered_out", False):
+        if query_node.is_filtered_out:
             tree_node.value = query_node  # keep the filtered state
             return tree_node, []
 
@@ -54,7 +54,7 @@ class QueryRefinement:
             TAP algorithm
             https://arxiv.org/pdf/2312.02119
         """
-        root = QueryRefinementTreeNode(self.root)
+        root = TreeNode(self.root)
 
         current_level = [root]
         depth = 0
@@ -74,20 +74,20 @@ class QueryRefinement:
 
                     if allow_refine and next_queries:
                         for q in next_queries:
-                            child = QueryRefinementTreeNode(q, parent=tree_node)
+                            child = TreeNode(q, parent=tree_node)
                             tree_node.children.append(child)
                             next_level.append(child)
 
                 depth += 1
                 current_level = next_level
         
-        print("*"*30)
-        print(root.value.to_dict())
-        for c in root.children:
-            print("*"*30)
-            print(c.value.to_dict())
-            print("*"*30)
-            print(c.children)
+        # print("*"*30)
+        # print(root.value.to_dict())
+        # for c in root.children:
+        #     print("*"*30)
+        #     print(c.value.to_dict())
+        #     print("*"*30)
+        #     print(c.children)
         return root
             
         
@@ -118,7 +118,7 @@ class QueryRefinement:
         # TODO: implement me
         return query_node
     
-    def refine_query(self, tree_node: QueryRefinementTreeNode) -> List[QueryNode]:
+    def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         query_node = tree_node.value
         proposed_queries: List[Tuple[str, str]] = refine_query(tree_node,
                                                     self.refinement_model,
@@ -127,8 +127,7 @@ class QueryRefinement:
                                                     self.filtering_policy)
         next_query_nodes = []
         for query, improvement in proposed_queries:
-            new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes)
-            new_query_node.query_improvement = improvement
+            new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_improvement=improvement)
             next_query_nodes.append(new_query_node)
         return next_query_nodes
     
