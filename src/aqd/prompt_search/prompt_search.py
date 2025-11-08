@@ -1,6 +1,7 @@
 from typing import List, Optional
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 from aqd.schema import PromptNode, QueryNode, TreeNode
 from aqd.prompt_search.generate_queries import generate_queries
@@ -70,7 +71,7 @@ class PromptSearch:
         results = []
         with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
             futures = [inner_pool.submit(self._run_single_query_refinement, q) for q in prompt_node.queries]
-            for fut in as_completed(futures):
+            for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query", leave=False):
                 query_node, query_tree_node = fut.result()
                 results.append((query_node, query_tree_node))
 
@@ -86,7 +87,15 @@ class PromptSearch:
         tree_node.value = prompt_node
         
         next_prompts = self.refine_prompt(prompt_node)
-        return tree_node, next_prompts
+        remaining_next_prompts = self.prune_prompts(prompt_node, next_prompts)
+        next_prompt_tree_nodes = []
+        for p in next_prompts:
+            child = TreeNode(p, parent=tree_node)
+            tree_node.children.append(child)
+            if p in remaining_next_prompts:
+                next_prompt_tree_nodes.append(child)
+        
+        return tree_node, next_prompt_tree_nodes
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):
         root = TreeNode(self.root)
@@ -104,14 +113,12 @@ class PromptSearch:
                 ]
 
                 next_level = []
-                for fut in as_completed(futures):
-                    tree_node, next_prompts = fut.result()
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}", leave=False):
+                    _, next_prompt_tree_nodes = fut.result()
 
-                    if allow_refine and next_prompts:
-                        for p in next_prompts:
-                            child = TreeNode(p, parent=tree_node)
-                            tree_node.children.append(child)
-                            next_level.append(child)
+                    if allow_refine and next_prompt_tree_nodes:
+                        for prompt_tree_node in next_prompt_tree_nodes:
+                            next_level.append(prompt_tree_node)
 
                 depth += 1
                 current_level = next_level
@@ -157,6 +164,13 @@ class PromptSearch:
             next_prompt_nodes.append(new_prompt_node)
 
         return next_prompt_nodes
+    
+    def prune_prompts(self, base_prompt_node: PromptNode, next_prompt_nodes: List[PromptNode]) -> List[PromptNode]:
+        remaining_prompt_nodes = [next_prompt_node for next_prompt_node in next_prompt_nodes if next_prompt_node >= base_prompt_node ]
+        if not remaining_prompt_nodes:
+            remaining_prompt_nodes = [max(next_prompt_nodes)]
+        return remaining_prompt_nodes
+
 
     def result_to_json(self, result: TreeNode):
         root = result
@@ -175,5 +189,6 @@ class PromptSearch:
 
             node_id += 1
         return res
+
     
     

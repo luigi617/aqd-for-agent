@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from tqdm import tqdm
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
 from models.model import get_model
@@ -53,7 +54,6 @@ def refine_query(
     
     query_node = tree_node.value
     query = query_node.query
-
 
     proposed_queries = []
     for _ in range(n_refinement):

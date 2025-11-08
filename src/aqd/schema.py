@@ -1,6 +1,6 @@
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
-
+from functools import cached_property
 
 class PromptNode:
     def __init__(self, prompt: str, improvement_reason: Optional[str] = None):
@@ -45,6 +45,34 @@ class PromptNode:
 
             node_id += 1
         return res
+    
+    @cached_property
+    def _compute_score(self):
+        score = 0
+        for query_tree_node in self.query_refinement_map.values():
+            stack = [query_tree_node]
+            while stack:
+                cur_query_tree_node = stack.pop()
+                score += (cur_query_tree_node.value.is_unpreferred == True)
+                stack.extend(cur_query_tree_node.children)
+        return score
+    
+    def __gt__(self, other: "PromptNode"):
+        return self._compute_score > other._compute_score
+    
+    def __ge__(self, other: "PromptNode"):
+        return self._compute_score >= other._compute_score
+    
+    def __lt__(self, other: "PromptNode"):
+        return self._compute_score < other._compute_score
+    
+    def __le__(self, other: "PromptNode"):
+        return self._compute_score <= other._compute_score
+    
+    def __eq__(self, other: "PromptNode"):
+        return self._compute_score == other._compute_score
+    
+
 
 class QueryNode:
     def __init__(self, query: str, product: dict, attributes: List, query_improvement: Optional[str] = None):
@@ -63,9 +91,13 @@ class QueryNode:
         self.evaluation: List[Tuple[str, str]] = []
         self.evaluation_reason: str = ""
 
+        self.is_unpreferred: Optional[bool] = None
+
+
     def to_dict(self) -> dict:
         return {
             "query": self.query,
+            "product": self.product.get("product_name"),
             "attributes": self.attributes,
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,

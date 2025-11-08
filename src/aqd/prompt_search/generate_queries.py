@@ -1,5 +1,5 @@
 from typing import List, Tuple
-
+from tqdm import tqdm
 from pydantic import Field, BaseModel
 from random import randint, choice
 

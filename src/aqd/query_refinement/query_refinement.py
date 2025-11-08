@@ -1,4 +1,5 @@
 from collections import deque
+from tqdm import tqdm
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -10,38 +11,38 @@ from aqd.query_refinement.refine_query import refine_query
 
 QUERY_REFINEMENT_STRATEGIES = [
     """Lexical / Word-Level Strategies:
-    These modify individual words but keep the overall sentence structure.
-    - Synonym substitution: "cheap phones" → "affordable smartphones"
-    - Morphological variation: "running shoes" → "shoes for running"
-    - Spelling normalization / correction: "restuarant" → "restaurant"
-    - Abbreviation expansion / compression: "AI" ↔ "artificial intelligence"
-    - Lemmatization / stemming: "buying" → "buy", "bought" → "buy"
+    Modify or normalize individual words or short phrases without changing grammatical structure or meaning scope.
+    - Domain-Specific Term Replacement: Shifts the model into a different domain register, e.g., "heart attack" -> "myocardial infarction"; "AI tools" -> "machine learning frameworks".
+    - Sentiment Shift / Synonym Substitution: Replaces words with synonyms or adjusts emotional orientation, possibly shifting nuance, e.g., "cheap phones" -> "affordable smartphones".
+    - Negation / Polarity Insertion: Reverses propositional truth with a single lexical token, e.g., "smoking causes cancer" -> "smoking does not cause cancer".
     """,
 
     """Syntactic Strategies:
-    These change the grammatical structure or word order of a sentence.
-    - Word order change: "weather in London today" → "today’s weather in London"
-    - Passive ↔ Active transformation: "films directed by Nolan" ↔ "Nolan-directed films"
-    - Clause restructuring / simplification: "What is the process of photosynthesis?" → "photosynthesis process"
-    - Nominalization / verbalization: "how to improve learning" ↔ "improvement of learning"
+    Change the grammatical or structural form of a sentence while preserving meaning.
+    - Coordination / Subordination Swap: Reorganizes clause relationships (parallel vs. causal), e.g., "Photosynthesis uses sunlight and produces oxygen" ↔ "Oxygen is produced because photosynthesis uses sunlight".
+    - Clause Restructuring / Simplification: Removes or flattens subordinate clauses or question forms, e.g., "What is the process of photosynthesis?" -> "photosynthesis process".
+    - Question ↔ Statement Transformation: Converts interrogative to declarative form (and vice versa), e.g., "Where is Mount Everest located?" ↔ "Mount Everest location".
     """,
 
     """Semantic Strategies:
-    These alter meaning slightly while maintaining the original intent.
-    - Generalization (hypernym substitution): "poodles" → "dogs"
-    - Specialization (hyponym substitution): "dogs" → "golden retrievers"
-    - Concept expansion: "climate change" → "climate change causes and effects"
-    - Paraphrasing: "how to make money online" → "ways to earn income digitally"
-    - Intent reframing: "buy iPhone 16" → "best deals on iPhone 16"
+    Modify the meaning or conceptual scope of the query while keeping user intent recognizable.
+    - Generalization: Replaces a specific term with a broader category (moves up the conceptual hierarchy), e.g., "poodles" -> "dogs".
+    - Specialization: Narrows the concept to a more specific instance or subtype, e.g., "dogs" -> "golden retrievers".
+    - Concept Expansion / Specification: Adds semantically related facets or dimensions to enrich the topic, e.g., "climate change" -> "climate change causes and effects".
+    - Intent Reframing for Purpose: Alters the user's intent type, e.g., "buy iPhone 16" -> "best deals on iPhone 16".
+    - Attribute or Property Focus Shift: Zooms in on a specific attribute of the concept, e.g., "electric cars" -> "electric car battery life".
     """,
 
-    """Reformulation for Context or User Intent:
-    These adapt phrasing to better fit context, style, or purpose.
-    - Conversational reformulation: "best Italian restaurants NYC" → "Where can I find the best Italian restaurants in NYC?"
-    - Question normalization: "how old is the Eiffel Tower" → "Eiffel Tower age"
-    - Perspective change: "history of AI" → "timeline of AI development"
+    """Contextual / Intent-Aware Reformulation:
+    Adjust phrasing to suit conversational, stylistic, or situational context without altering factual meaning.
+    - Conversational Adaptation: Converts keyword-style input into a natural conversational query, e.g., "best Italian restaurants NYC" -> "Where can I find the best Italian restaurants in NYC?".
+    - Perspective or Role Shift: Changes narrative perspective (actor, agent, or focus role), e.g., "how did humans develop AI?" -> "how did AI development shape human society?".
+    - Task Type Conversion: Switches the task framing (definition -> summary -> instruction -> analysis), e.g., "how to fix a printer" -> "step-by-step guide to fixing a printer".
+    - Audience Adaptation: Adjusts difficulty, tone, and style for a specific audience or role, e.g., "quantum entanglement explained" -> "explain quantum entanglement to a 10-year-old".
+    - Discourse Function Adjustment: Changes the communicative purpose (listing -> reasoning -> justification), e.g., "examples of renewable energy" -> "why are renewable energies important?".
     """
 ]
+
 
 class QueryRefinement:
     
@@ -105,7 +106,7 @@ class QueryRefinement:
                 ]
 
                 next_level = []
-                for fut in as_completed(futures):
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {query_refinement_strategy_i}", leave=False):
                     tree_node, next_queries = fut.result()
 
                     if allow_refine and next_queries:
@@ -139,6 +140,11 @@ class QueryRefinement:
                                                      self.target_model,
                                                      self.preferred_definition,
                                                      self.unpreferred_definition)
+        query_node.is_unpreferred = False
+        for criterion, _ in criteria_chosen:
+            if criterion in self.unpreferred_definition:
+                query_node.is_unpreferred = True
+                break
         query_node.evaluation = criteria_chosen
         query_node.evaluation_reason = reason
         return query_node

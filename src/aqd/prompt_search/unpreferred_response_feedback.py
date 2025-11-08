@@ -42,7 +42,7 @@ def get_unpreferred_criteria_str(unpreferred_definition):
         unpreferred_criteria.extend(criteria)
     return "\n".join([f"- {c}" for c in unpreferred_criteria])
 
-def get_unpreferred_response_str(prompt_node: PromptNode, unpreferred_definition: dict):
+def get_unpreferred_response_str(prompt_node: PromptNode):
     unpreferred_builder = ""
     for query_node in prompt_node.queries:
         if not query_node.is_filtered_out:
@@ -50,14 +50,9 @@ def get_unpreferred_response_str(prompt_node: PromptNode, unpreferred_definition
 
         query = query_node.query
         response = query_node.response
-        criteria_chosen = query_node.evaluation
         eval_reason = query_node.evaluation_reason
     
-        is_unpreferred = False
-        for category, _ in criteria_chosen:
-            if category in unpreferred_definition:
-                is_unpreferred = True
-                break
+        is_unpreferred = query_node.is_unpreferred
 
         if is_unpreferred:
             unpreferred_builder += (
@@ -81,7 +76,7 @@ def unpreferred_response_feedback(
     prompt = prompt_node.prompt
 
     unpreferred_criteria = get_unpreferred_criteria_str(unpreferred_definition)
-    unpreferred_responses = get_unpreferred_response_str(prompt_node, unpreferred_definition)
+    unpreferred_responses = get_unpreferred_response_str(prompt_node)
     unpreferred_response_feedback = unpreferred_response_chain(
         UNPREFERRED_RESPONSE_FEEDBACK_PROMPT.format(
             current_prompts=prompt, 
