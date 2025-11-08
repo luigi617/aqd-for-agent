@@ -1,3 +1,5 @@
+import json
+import os
 from typing import List, Optional
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -27,7 +29,8 @@ class PromptSearch:
                  n_prompt_refinemnet_children,
                  n_query_refiment_children,
                  n_thread_queries,
-                 n_thread_query_refiment):
+                 n_thread_query_refiment,
+                 base_depth_output_path):
         self.root: PromptNode = PromptNode(prompt)
         self.products: List[dict] = products
         self.n_queries: int = n_queries
@@ -46,6 +49,8 @@ class PromptSearch:
         self.n_query_refiment_children = n_query_refiment_children
         self.n_thread_queries = n_thread_queries
         self.n_thread_query_refiment = n_thread_query_refiment
+
+        self.base_depth_output_path = base_depth_output_path
 
 
     def _run_single_query_refinement(self, query_node):
@@ -98,9 +103,9 @@ class PromptSearch:
         return tree_node, next_prompt_tree_nodes
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):
-        root = TreeNode(self.root)
+        root_tree_node = TreeNode(self.root)
 
-        current_level = [root]
+        current_level = [root_tree_node]
         depth = 0
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
@@ -119,10 +124,10 @@ class PromptSearch:
                     if allow_refine and next_prompt_tree_nodes:
                         for prompt_tree_node in next_prompt_tree_nodes:
                             next_level.append(prompt_tree_node)
-
+                self.save_result(root_tree_node, depth)
                 depth += 1
                 current_level = next_level
-        return root
+        return root_tree_node
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
         queries = generate_queries(prompt_node, self.generate_model, self.products, self.n_queries)
@@ -189,6 +194,14 @@ class PromptSearch:
 
             node_id += 1
         return res
+    
+    def save_result(self, result: TreeNode, depth):
+        result_json = self.result_to_json(result)
+        save_depth_path = self.base_depth_output_path.with_stem(self.base_depth_output_path.stem + f'_depth{depth}')
+        os.makedirs(save_depth_path.parent, exist_ok=True)
+        with open(save_depth_path, 'w') as f:
+            json.dump(result_json, f, indent=4)
+        print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
     
     

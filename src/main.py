@@ -31,9 +31,10 @@ def set_seed(seed: int = 42):
     print(f"✅ Random seed set to {seed}")
 
 def save_result(result: list, output_path):
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_path.parent, exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump(result, f, indent=4)
+    print(f"Save prompt search result to {output_path}")
 
 def main():
     load_dotenv(override=True)
@@ -44,8 +45,10 @@ def main():
     if args.seed is not None:
         set_seed(args.seed)
 
-    result = []
+    result = {}
     for index, init_prompt in enumerate(args.initial_prompt_pool):
+        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
+        print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
         ps = PromptSearch(
             prompt=init_prompt,
             products=args.products,
@@ -63,16 +66,18 @@ def main():
             n_query_refiment_children=args.n_query_refiment_children,
             n_thread_queries=args.n_thread_queries,
             n_thread_query_refiment=args.n_thread_query_refiment,
+            base_depth_output_path=save_iter_path,
         )
 
         prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
         prompt_search_res_json = ps.result_to_json(prompt_search_res)
-        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
+        
         save_result(prompt_search_res_json, save_iter_path)
 
-        result.extend(prompt_search_res_json)
+        result[init_prompt] = prompt_search_res_json
 
     save_result(result, args.output_path)
+    print(f"PROMPT OPTIMIZATION: DONE")
 
 if __name__ == "__main__":
     main()
