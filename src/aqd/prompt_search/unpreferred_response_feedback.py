@@ -23,7 +23,7 @@ Non-preferred criteria:
 {unpreferred_criteria}
 
 Output Format:
-Return first a string explaining how the current prompt produces queries that receive non-preferred responses. Then, provide a contributing prompt pattern, a list of specific patterns, phrases, or logic in the prompt that likely caused the queries to generate non-preferred responses. Finally, include a list of improvement suggestions: guidance on how to refine or reword the prompt to generate user queries that are more likely to produce preferred responses.
+Return first a string explaining how the current prompt produces queries that receive non-preferred responses. Then, provide an improvement suggestions: guidance on how to refine or reword the prompt to generate user queries that are more likely to produce preferred responses.
 """
 
 
@@ -31,12 +31,8 @@ Return first a string explaining how the current prompt produces queries that re
 class UnpreferredResponseFeedbackSchema(BaseModel):
     
     reasoning: str = Field(description="Explanation of how the current prompt produces queries that are answered in a non-preferred way.")
-    contributing_prompt_patterns: List[str] = Field(
-        default_factory=list,
-        description="Phrases/rules in the prompt that generate queries that promote non-preferred responses."
-    )
-    improvement_suggestions: List[str] = Field(
-        default_factory=list,
+    
+    improvement_suggestions: str = Field(
         description="Guidance on how to refine the prompt to generate user queries that are more likely to produce unpreferred response."
     )
 
@@ -94,4 +90,4 @@ def unpreferred_response_feedback(
         )
     )
 
-    return unpreferred_response_feedback["reasoning"], unpreferred_response_feedback["contributing_prompt_patterns"], unpreferred_response_feedback["improvement_suggestions"]
+    return unpreferred_response_feedback["reasoning"], unpreferred_response_feedback["improvement_suggestions"]

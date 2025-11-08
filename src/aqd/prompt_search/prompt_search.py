@@ -125,20 +125,18 @@ class PromptSearch:
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
         res = query_filter_feedback(prompt_node, self.refinement_model, self.filtering_policy)
-        reason, contributing_prompt_patterns, improvement_suggestions = res
+        reason, improvement_suggestions = res
 
         prompt_node.query_filter_reason = reason
-        prompt_node.query_filter_contributing_prompt_patterns = contributing_prompt_patterns
         prompt_node.query_filter_improvement_suggestions = improvement_suggestions
 
         return prompt_node
 
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
         res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.unpreferred_definition)
-        reason, contributing_prompt_patterns, improvement_suggestions = res
+        reason, improvement_suggestions = res
 
         prompt_node.unpreferred_response_reason = reason
-        prompt_node.unpreferred_response_contributing_prompt_patterns = contributing_prompt_patterns
         prompt_node.unpreferred_response_improvement_suggestions = improvement_suggestions
 
         return prompt_node
@@ -147,6 +145,7 @@ class PromptSearch:
         new_promtps = refine_prompt(
             prompt_node,
             self.refinement_model,
+            self.filtering_policy,
             self.preferred_definition,
             self.unpreferred_definition,
             self.n_prompt_refinemnet_children

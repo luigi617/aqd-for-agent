@@ -23,7 +23,7 @@ Query filtering policy:
 {filtering_policy}
 
 Output Format:
-Return first a string explaining why the current prompt produced queries that did not satisfy the query filtering policy. Then, provide a contributing prompt pattern, a list of specific patterns, phrases, or logic in the prompt that likely caused the queries to be filtered out. Finally, include a list of improvement suggestions: guidance on how to refine or reword the prompt to prevent the queries from being filtered out.
+Return first a string explaining why the current prompt produced queries that did not satisfy the query filtering policy. Then, return an improvement suggestions: guidance on how to refine or reword the prompt to prevent the queries from being filtered out.
 """
 
 
@@ -32,13 +32,7 @@ class QueryFilterFeedbackSchema(BaseModel):
     
     reasoning: str = Field(description="Explanation of why the current prompt produced queries not satisfying query filtering policy.")
     
-    contributing_prompt_patterns: List[str] = Field(
-        default_factory=list,
-        description="Specific patterns, phrases, or logic in the prompt that likely caused queries to be filtered out."
-    )
-    
-    improvement_suggestions: List[str] = Field(
-        default_factory=list,
+    improvement_suggestions: str = Field(
         description="Guidance on how to refine or reword the prompt to prevent queries to be filtered out."
     )
 
@@ -77,4 +71,4 @@ def query_filter_feedback(
         )
     )
 
-    return query_filtering_feedback["reasoning"], query_filtering_feedback["contributing_prompt_patterns"], query_filtering_feedback["improvement_suggestions"]
+    return query_filtering_feedback["reasoning"], query_filtering_feedback["improvement_suggestions"]

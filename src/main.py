@@ -44,7 +44,7 @@ def main():
         set_seed(args.seed)
 
     result = []
-    for init_prompt, index in enumerate(args.initial_prompt_pool):
+    for index, init_prompt in enumerate(args.initial_prompt_pool):
         ps = PromptSearch(
             prompt=init_prompt,
             products=args.products,
@@ -69,7 +69,7 @@ def main():
         save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
         save_result(prompt_search_res_json, save_iter_path)
 
-        result.extend(prompt_search_res)
+        result.extend(prompt_search_res_json)
 
     save_result(result, args.output_path)
 

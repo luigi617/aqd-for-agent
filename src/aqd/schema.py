@@ -11,12 +11,10 @@ class PromptNode:
         self.query_refinement_map: Dict[QueryNode, TreeNode] = {}
 
         self.query_filter_reason: str = ""
-        self.query_filter_contributing_prompt_patterns: List[str] = ""
-        self.query_filter_improvement_suggestions: List[str] = ""
+        self.query_filter_improvement_suggestions: str = ""
 
         self.unpreferred_response_reason: str = ""
-        self.unpreferred_response_contributing_prompt_patterns: List[str] = ""
-        self.unpreferred_response_improvement_suggestions: List[str] = ""
+        self.unpreferred_response_improvement_suggestions: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -25,11 +23,9 @@ class PromptNode:
             "queries": [self.query_to_json(self.query_refinement_map[query]) for query in self.queries],
             
             "query_filter_reason": self.query_filter_reason,
-            "query_filter_contributing_prompt_patterns": self.query_filter_contributing_prompt_patterns,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
-            "unpreferred_response_contributing_prompt_patterns": self.unpreferred_response_contributing_prompt_patterns,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
         }
     
