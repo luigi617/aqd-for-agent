@@ -158,7 +158,6 @@ class QueryRefinement:
         proposed_queries: List[Tuple[str, str]] = refine_query(tree_node,
                                                     self.refinement_model,
                                                     query_refinement_strategy,
-
                                                     self.n_query_refiment_children)
         next_query_nodes = []
         for query, improvement in proposed_queries:

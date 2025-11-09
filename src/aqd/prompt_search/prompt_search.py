@@ -83,7 +83,8 @@ class PromptSearch:
         for query_node, query_tree_node in results:
             prompt_node.query_refinement_map[query_node] = query_tree_node
 
-        if not allow_refine:
+        is_pruned = tree_node.parent and self.is_prompt_node_pruned(prompt_node, tree_node.parent.value)
+        if not allow_refine or is_pruned:
             tree_node.value = prompt_node
             return tree_node, []
         
@@ -92,15 +93,9 @@ class PromptSearch:
         tree_node.value = prompt_node
         
         next_prompts = self.refine_prompt(prompt_node)
-        remaining_next_prompts = self.prune_prompts(prompt_node, next_prompts)
-        next_prompt_tree_nodes = []
-        for p in next_prompts:
-            child = TreeNode(p, parent=tree_node)
-            tree_node.children.append(child)
-            if p in remaining_next_prompts:
-                next_prompt_tree_nodes.append(child)
         
-        return tree_node, next_prompt_tree_nodes
+        
+        return tree_node, next_prompts
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):
         root_tree_node = TreeNode(self.root)
@@ -119,11 +114,13 @@ class PromptSearch:
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}", leave=False):
-                    _, next_prompt_tree_nodes = fut.result()
+                    tree_node, next_prompt_nodes = fut.result()
 
-                    if allow_refine and next_prompt_tree_nodes:
-                        for prompt_tree_node in next_prompt_tree_nodes:
-                            next_level.append(prompt_tree_node)
+                    if allow_refine and next_prompt_nodes:
+                        for prompt_node in next_prompt_nodes:
+                            child = TreeNode(prompt_node, parent=tree_node)
+                            tree_node.children.append(child)
+                            next_level.append(child)
                 self.save_result(root_tree_node, depth)
                 depth += 1
                 current_level = next_level
@@ -170,11 +167,8 @@ class PromptSearch:
 
         return next_prompt_nodes
     
-    def prune_prompts(self, base_prompt_node: PromptNode, next_prompt_nodes: List[PromptNode]) -> List[PromptNode]:
-        remaining_prompt_nodes = [next_prompt_node for next_prompt_node in next_prompt_nodes if next_prompt_node >= base_prompt_node ]
-        if not remaining_prompt_nodes:
-            remaining_prompt_nodes = [max(next_prompt_nodes)]
-        return remaining_prompt_nodes
+    def is_prompt_node_pruned(self, cur_prompt_node: PromptNode, base_prompt_node: PromptNode) -> bool:
+        return cur_prompt_node >= base_prompt_node
 
 
     def result_to_json(self, result: TreeNode):
