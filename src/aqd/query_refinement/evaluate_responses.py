@@ -28,7 +28,7 @@ Instructions (follow all):
 - Provide a concise explanation of why you selected (or did not select) the criteria
 
 Output format:
-Return the reasoning for all selected criteria, then list the criteria that apply to the response.
+Return the reasoning for all selected criteria, then list the keys of the criteria whose values apply to the response
 """
 
 # dynamic function to create pydantic schema from preference criteria
