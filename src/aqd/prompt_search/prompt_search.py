@@ -69,30 +69,35 @@ class PromptSearch:
 
     def _process_node(self, tree_node, allow_refine: bool):
         prompt_node: PromptNode = tree_node.value
+        with tqdm(total=5, desc="Processing prompt refinement node", unit="step") as pbar:
+            prompt_node = self.generate_queries(prompt_node)
+            pbar.update(1)
+            max_workers = min(self.n_thread_queries, len(prompt_node.queries))
+            results = []
+            with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
+                futures = [inner_pool.submit(self._run_single_query_refinement, q) for q in prompt_node.queries]
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
+                    query_node, query_tree_node = fut.result()
+                    results.append((query_node, query_tree_node))
+            pbar.update(1)
+            for query_node, query_tree_node in results:
+                prompt_node.query_refinement_map[query_node] = query_tree_node
 
-        prompt_node = self.generate_queries(prompt_node)
-
-        max_workers = min(self.n_thread_queries, len(prompt_node.queries))
-        results = []
-        with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
-            futures = [inner_pool.submit(self._run_single_query_refinement, q) for q in prompt_node.queries]
-            for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query", leave=False):
-                query_node, query_tree_node = fut.result()
-                results.append((query_node, query_tree_node))
-
-        for query_node, query_tree_node in results:
-            prompt_node.query_refinement_map[query_node] = query_tree_node
-
-        is_pruned = tree_node.parent and self.is_prompt_node_pruned(prompt_node, tree_node.parent.value)
-        if not allow_refine or is_pruned:
+            is_pruned = tree_node.parent and self.is_prompt_node_pruned(prompt_node, tree_node.parent.value)
+            pbar.update(1)
+            if not allow_refine or is_pruned:
+                tree_node.value = prompt_node
+                return tree_node, []
+            
+            prompt_node = self.get_query_filter_feedback(prompt_node)
+            pbar.update(1)
+            prompt_node = self.get_unpreferred_response_feedback(prompt_node)
+            pbar.update(1)
+            
             tree_node.value = prompt_node
-            return tree_node, []
-        
-        prompt_node = self.get_query_filter_feedback(prompt_node)
-        prompt_node = self.get_unpreferred_response_feedback(prompt_node)
-        tree_node.value = prompt_node
-        
-        next_prompts = self.refine_prompt(prompt_node)
+            
+            next_prompts = self.refine_prompt(prompt_node)
+            pbar.update(1)
         
         
         return tree_node, next_prompts
@@ -113,7 +118,7 @@ class PromptSearch:
                 ]
 
                 next_level = []
-                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}", leave=False):
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
                     tree_node, next_prompt_nodes = fut.result()
 
                     if allow_refine and next_prompt_nodes:

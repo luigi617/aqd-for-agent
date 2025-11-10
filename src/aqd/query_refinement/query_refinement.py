@@ -69,22 +69,28 @@ class QueryRefinement:
 
     def _process_node(self, tree_node, query_refinement_strategy_i: int):
         query_node = tree_node.value
+        with tqdm(total=5, desc="Processing query refinement node", unit="step") as pbar:
 
-        query_node = self.filter_queries(query_node)
-        if query_node.is_filtered_out:
-            tree_node.value = query_node  # keep the filtered state
-            return tree_node, []
+            query_node = self.filter_queries(query_node)
+            pbar.update(1)
+            if query_node.is_filtered_out:
+                tree_node.value = query_node  # keep the filtered state
+                return tree_node, []
 
-        query_node = self.generate_response(query_node)
-        query_node = self.evaluate_responses(query_node)
-        query_node = self.modify_responses(query_node)
+            query_node = self.generate_response(query_node)
+            pbar.update(1)
+            query_node = self.evaluate_responses(query_node)
+            pbar.update(1)
+            query_node = self.modify_responses(query_node)
+            pbar.update(1)
 
-        tree_node.value = query_node
+            tree_node.value = query_node
 
-        if query_refinement_strategy_i >= len(QUERY_REFINEMENT_STRATEGIES):
-            return tree_node, []
+            if query_refinement_strategy_i >= len(QUERY_REFINEMENT_STRATEGIES):
+                return tree_node, []
 
-        next_queries = self.refine_query(tree_node, QUERY_REFINEMENT_STRATEGIES[query_refinement_strategy_i])
+            next_queries = self.refine_query(tree_node, QUERY_REFINEMENT_STRATEGIES[query_refinement_strategy_i])
+            pbar.update(1)
         return tree_node, next_queries
 
     def run(self, n_workers = 5):
@@ -106,7 +112,7 @@ class QueryRefinement:
                 ]
 
                 next_level = []
-                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {query_refinement_strategy_i}", leave=False):
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {query_refinement_strategy_i}"):
                     tree_node, next_queries = fut.result()
 
                     if allow_refine and next_queries:

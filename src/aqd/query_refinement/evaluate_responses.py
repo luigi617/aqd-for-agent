@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Tuple
 
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, field_validator
 from aqd.schema import QueryNode
 from models.model import get_model
 
@@ -33,16 +33,37 @@ Return the reasoning for all selected criteria, then list the criteria that appl
 
 # dynamic function to create pydantic schema from preference criteria
 
-def get_schema(preference_criteria_map: dict):
-    # Build an enum whose *values* are your strings; names are safe placeholders.
-    CriteriaEnum = Enum("CriteriaEnum", {k: v for k, v in preference_criteria_map.items()})
-
+def get_schema(preference_criteria_map: dict[str, str]):
+    allowed = list(preference_criteria_map.keys())
     class EvalResponseSchema(BaseModel):
         reasoning: str = Field(description="Reasoning for criteria to choose")
-        criteria: List[CriteriaEnum] = Field(
+        criteria: List[str] = Field(
             default_factory=list,
-            description="0 or more chosen criteria from the allowed list"
+            description=f"0 or more chosen criteria. Allowed values: {allowed}"
         )
+
+        # Accept single string, null, or list
+        @field_validator("criteria", mode="before")
+        @classmethod
+        def coerce_to_list(cls, v):
+            if v is None:
+                return []
+            if isinstance(v, str):
+                return [v]
+            return v
+
+        # Normalize case/whitespace, verify membership, and dedupe while preserving order
+        @field_validator("criteria")
+        @classmethod
+        def normalize_and_validate(cls, selected_criteria):
+            out = set()
+            for criteria_key in selected_criteria:
+                if criteria_key not in preference_criteria_map:
+                    raise ValueError(
+                        f"Unknown criterion: {criteria_key}. Allowed: {allowed}"
+                    )
+                out.add(preference_criteria_map[criteria_key])
+            return list(out)
 
     return EvalResponseSchema
 
@@ -94,7 +115,7 @@ def evaluate_responses(
     chosen_criteria = []
     for criterion in evaluation['criteria']:
         for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
-            if criterion.value in criteria:
-                chosen_criteria.append((category, criterion.value))
+            if criterion in criteria:
+                chosen_criteria.append((category, criterion))
 
     return chosen_criteria, evaluation["reasoning"]

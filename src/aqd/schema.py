@@ -27,7 +27,7 @@ class PromptNode:
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": sekf._compute_score
+            "score": self._compute_score
         }
     
     def query_to_json(self, query_tree_node: "TreeNode"):

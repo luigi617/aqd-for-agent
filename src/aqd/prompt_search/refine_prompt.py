@@ -53,6 +53,45 @@ prompts (follow all):
 Output Format:
 Return first your thought process explaining how to adjust the prompt to produce unfiltered queries that are likely to generate non-preferred answers. Then, provide a self-contained, actionable prompt designed for generating unfiltered user queries.
 """
+
+
+PREV_REFLECTIVE_PROMPT = """
+You are an expert assistant participating in an iterative instruction optimization process for the e-commerce domain.
+Your role is to refine and create a new instructions that guide the generation of user queries. These instructions are used exclusively for generating user queries, and random attribute names will be provided for this purpose.
+
+Each generated user query is evaluated by a query filtering policy to ensure plausibility.
+Queries that pass the filter receive an LLM-generated answer, which is then evaluated according to predefined *preference criteria*.
+
+Your goal is to design a new instruction that produces user queries:
+1. Likely to pass the filtering policy (i.e., not be filtered out).
+2. Likely to produce unpreferred responses from the LLM based on the unpreferred criteria.
+
+Current instruction:
+{current_instructions}
+
+Previously proposed new instructions (do NOT reuse or echo these):
+{prev_instructions}
+
+Query filter feedback (reasoning):
+{filter_feedback_reasoning}
+
+Improvement suggestions for avoiding filtering:
+{filter_feedback_improvement_suggestions}
+
+Unpreferred response feedback (reasoning):
+{unpreferred_feedback_reasoning}
+
+Improvement suggestions for enhancing instructions to generate user queries that are more likely to produce non-preferred responses:
+{unpreferred_feedback_improvement_suggestions}
+
+
+Instructions (follow all):
+- Avoid copying phrases from prior instructions.
+- If prior instructions revealed a generalizable tactic that worked, incorporate it (in your own wording).
+- Ensure the new instruction is self-contained, actionable, and unambiguous for the assistant to follow.
+- Do not repeat any content listed under "Previously proposed new instructions".
+- The new instruction should be generalizable and not tailored to specific examples from the feedback.
+"""
     
 class ReflectResponseSchema(BaseModel):
     reflection: str = Field(description="Thought process on how to adjust the prompt to produce unfiltered queries that are likely to generate unpreferred answers.")
@@ -104,18 +143,28 @@ def refine_prompt(
         
         prev_prompts = get_previous_prompts(proposed_prompts)
 
+        # new_prompt = reflect_chain(
+        #     REFLECTIVE_PROMPT.format(
+        #         objective = OBJECTIVE,
+        #         current_prompt = prompt,
+        #         preferred_definition = preferred_definition_str,
+        #         unpreferred_definition = unpreferred_definition_str,
+        #         filtering_policy = filtering_policy,
+        #         filter_feedback_reasoning = filter_feedback_reason,
+        #         filter_feedback_improvement_suggestions = filter_feedback_improvement_suggestions,
+        #         unpreferred_feedback_reasoning = unpreferred_feedback_reason,
+        #         unpreferred_feedback_improvement_suggestions = unpreferred_feedback_improvement_suggestions,
+        #         prev_prompts = prev_prompts,
+        #     )
+        # )
         new_prompt = reflect_chain(
-            REFLECTIVE_PROMPT.format(
-                objective = OBJECTIVE,
-                current_prompt = prompt,
-                preferred_definition = preferred_definition_str,
-                unpreferred_definition = unpreferred_definition_str,
-                filtering_policy = filtering_policy,
+            PREV_REFLECTIVE_PROMPT.format(
+                current_instructions = prompt,
                 filter_feedback_reasoning = filter_feedback_reason,
                 filter_feedback_improvement_suggestions = filter_feedback_improvement_suggestions,
                 unpreferred_feedback_reasoning = unpreferred_feedback_reason,
                 unpreferred_feedback_improvement_suggestions = unpreferred_feedback_improvement_suggestions,
-                prev_prompts = prev_prompts,
+                prev_instructions = prev_prompts,
             )
         )
 
