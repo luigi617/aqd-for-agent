@@ -1,7 +1,7 @@
 import json
 import os
 from typing import List, Optional
-from collections import deque
+from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
@@ -83,9 +83,8 @@ class PromptSearch:
             for query_node, query_tree_node in results:
                 prompt_node.query_refinement_map[query_node] = query_tree_node
 
-            is_pruned = tree_node.parent and self.is_prompt_node_pruned(prompt_node, tree_node.parent.value)
             pbar.update(1)
-            if not allow_refine or is_pruned:
+            if not allow_refine:
                 tree_node.value = prompt_node
                 return tree_node, []
             
@@ -111,7 +110,6 @@ class PromptSearch:
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
             while current_level:
                 allow_refine = depth < max_depth
-
                 futures = [
                     pool.submit(self._process_node, node, allow_refine)
                     for node in current_level
@@ -128,7 +126,7 @@ class PromptSearch:
                             next_level.append(child)
                 self.save_result(root_tree_node, depth)
                 depth += 1
-                current_level = next_level
+                current_level = self.prune_prompt_nodes(next_level)
         return root_tree_node
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
@@ -172,8 +170,29 @@ class PromptSearch:
 
         return next_prompt_nodes
     
-    def is_prompt_node_pruned(self, cur_prompt_node: PromptNode, base_prompt_node: PromptNode) -> bool:
-        return cur_prompt_node >= base_prompt_node
+    def prune_prompt_nodes(self, prompt_nodes: List[TreeNode]) -> List[TreeNode]:
+        remaining_prompt_nodes = []
+        # {prev prev node: prevn node : cur nodes}
+        prompt_nodes_relation_map = defaultdict(lambda: defaultdict(list))
+        for prompt_node in prompt_nodes:
+            parent = prompt_node.parent
+            if not parent:
+                remaining_prompt_nodes.append(prompt_node)
+                continue
+            grandparent = parent.parent
+            if not grandparent:
+                remaining_prompt_nodes.append(prompt_node)
+                continue
+            prompt_nodes_relation_map[grandparent][parent].append(prompt_node)
+        
+        for grandparent, parent_map in prompt_nodes_relation_map.items():
+            remaining_parents = [parent for parent in parent_map.keys() if parent.value >= grandparent.value]
+            if not remaining_parents:
+                remaining_parents = [max(parent_map.keys())]
+            for parent in remaining_parents:
+                remaining_prompt_nodes.extend(parent_map[parent])
+
+        return remaining_prompt_nodes
 
 
     def result_to_json(self, result: TreeNode):
