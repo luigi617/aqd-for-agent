@@ -63,8 +63,8 @@ class PromptNode:
                     score += (cur_query_node.get_score(preference_score_map))
                     count += 1
                 stack.extend(cur_query_tree_node.children)
-        self.score = score / count
-        return score / count
+        self.score = score / count if count > 0 else float("-inf")
+        return self.score
     
     
     def __gt__(self, other: "PromptNode"):
@@ -107,6 +107,8 @@ class QueryNode:
             return float("-inf")
         if self.score is not None:
             return self.score
+        if not self.evaluation:
+            return None
         score = sum(preference_score_map[criterion] for criterion, _ in self.evaluation) / len(self.evaluation)
         self.score = score
         return score
