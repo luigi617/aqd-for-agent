@@ -24,6 +24,7 @@ class PromptSearch:
                  evaluation_model,
                  preferred_definition,
                  unpreferred_definition,
+                 preference_score_map,
                  filtering_policy,
 
                  n_prompt_refinemnet_children,
@@ -45,6 +46,7 @@ class PromptSearch:
 
         self.preferred_definition = preferred_definition
         self.unpreferred_definition = unpreferred_definition
+        self.preference_score_map = preference_score_map
         self.filtering_policy = filtering_policy
 
         self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
@@ -66,6 +68,7 @@ class PromptSearch:
             evaluation_model=self.evaluation_model,
             preferred_definition=self.preferred_definition,
             unpreferred_definition=self.unpreferred_definition,
+            preference_score_map=self.preference_score_map,
             filtering_policy=self.filtering_policy,
             n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
         )
@@ -184,6 +187,8 @@ class PromptSearch:
             prompt_nodes_relation_map[parent].append(prompt_node)
         
         parent_nodes = list(prompt_nodes_relation_map.keys())
+        for parent in parent_nodes:
+            parent.value.get_score(self.preference_score_map)
         remaining_parent_nodes = sorted(parent_nodes, key=lambda node: node.value)[:self.n_prompt_refinemnet_beam_search_size]
         for parent in remaining_parent_nodes:
             remaining_prompt_nodes.extend(prompt_nodes_relation_map[parent])
@@ -200,7 +205,7 @@ class PromptSearch:
         while queue:
             cur_prompt_tree_node, parent_id = queue.popleft()
             prompt_node: PromptNode = cur_prompt_tree_node.value
-            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **prompt_node.to_dict()}
+            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **prompt_node.to_dict(self.preference_score_map)}
             res.append(prompt_row)
 
             for next_prompt_tree_node in cur_prompt_tree_node.children:

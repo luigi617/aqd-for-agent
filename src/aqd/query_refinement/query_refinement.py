@@ -19,6 +19,7 @@ class QueryRefinement:
                  refinement_model, evaluation_model,
                  preferred_definition,
                  unpreferred_definition,
+                 preference_score_map,
                  filtering_policy,
                  n_query_refiment_beam_search_size):
         
@@ -31,6 +32,7 @@ class QueryRefinement:
 
         self.preferred_definition = preferred_definition
         self.unpreferred_definition = unpreferred_definition
+        self.preference_score_map = preference_score_map
         self.filtering_policy = filtering_policy
         
         self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
@@ -145,6 +147,8 @@ class QueryRefinement:
             query_nodes_relation_map[parent].append(query_node)
         
         parent_nodes = list(query_nodes_relation_map.keys())
+        for parent in parent_nodes:
+            parent.value.get_score(self.preference_score_map)
         remaining_parent_nodes = sorted(parent_nodes, key=lambda node: node.value)[:self.n_query_refiment_beam_search_size]
         for parent in remaining_parent_nodes:
             remaining_query_nodes.extend(query_nodes_relation_map[parent])

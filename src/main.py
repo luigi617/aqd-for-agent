@@ -45,6 +45,18 @@ def main():
     if args.seed is not None:
         set_seed(args.seed)
 
+    preferred_definition = {}
+    unpreferred_definition = {}
+    preference_score_map = {}
+    for criterion, info in args.preferred_definition.items():
+        preferred_definition[criterion] = info["description"]
+        preference_score_map[criterion] = info["score"]
+
+    for criterion, info in args.unpreferred_definition.items():
+        unpreferred_definition[criterion] = info["description"]
+        preference_score_map[criterion] = info["score"]
+
+
     result = {}
     for index, init_prompt in enumerate(args.initial_prompt_pool):
         save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
@@ -58,8 +70,9 @@ def main():
             target_model=args.target_model,
             filtering_model=args.filtering_model,
             evaluation_model=args.evaluation_model,
-            preferred_definition=args.preferred_definition,
-            unpreferred_definition=args.unpreferred_definition,
+            preferred_definition=preferred_definition,
+            unpreferred_definition=unpreferred_definition,
+            preference_score_map=preference_score_map,
             filtering_policy=args.filtering_policy,
 
             n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,

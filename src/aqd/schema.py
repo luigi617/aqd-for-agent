@@ -16,21 +16,23 @@ class PromptNode:
         self.unpreferred_response_reason: str = ""
         self.unpreferred_response_improvement_suggestions: str = ""
 
-    def to_dict(self) -> dict:
+        self.score: Optional[float] = None
+
+    def to_dict(self, preference_score_map: dict) -> dict:
         return {
             "improvement_reason": self.improvement_reason,
             "prompt": self.prompt,
-            "queries": [self.query_to_json(self.query_refinement_map[query]) for query in self.queries],
+            "queries": [self.query_to_json(self.query_refinement_map[query], preference_score_map) for query in self.queries],
             
             "query_filter_reason": self.query_filter_reason,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": self._compute_score
+            "score": self.get_score(preference_score_map)
         }
     
-    def query_to_json(self, query_tree_node: "TreeNode"):
+    def query_to_json(self, query_tree_node: "TreeNode", preference_score_map):
         if not query_tree_node: return []
         res = []
         node_id = 0
@@ -38,7 +40,7 @@ class PromptNode:
         while queue:
             cur_query_tree_node, parent_id = queue.popleft()
             query_node: QueryNode = cur_query_tree_node.value
-            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **query_node.to_dict()}
+            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **query_node.to_dict(preference_score_map)}
             res.append(prompt_row)
 
             for next_query_tree_node in cur_query_tree_node.children:
@@ -47,28 +49,35 @@ class PromptNode:
             node_id += 1
         return res
     
-    @cached_property
-    def _compute_score(self):
+    def get_score(self, preference_score_map: dict):
+        if self.score is not None:
+            return self.score
+        count = 0
         score = 0
         for query_tree_node in self.query_refinement_map.values():
             stack = [query_tree_node]
             while stack:
                 cur_query_tree_node = stack.pop()
-                score += (cur_query_tree_node.value.is_unpreferred == True)
+                cur_query_node = cur_query_tree_node.value
+                if not cur_query_node.is_filtered_out:
+                    score += (cur_query_node.get_score(preference_score_map))
+                    count += 1
                 stack.extend(cur_query_tree_node.children)
-        return score
+        self.score = score / count
+        return score / count
+    
     
     def __gt__(self, other: "PromptNode"):
-        return self._compute_score > other._compute_score
+        return self.score > other.score
     
     def __ge__(self, other: "PromptNode"):
-        return self._compute_score >= other._compute_score
+        return self.score >= other.score
     
     def __lt__(self, other: "PromptNode"):
-        return self._compute_score < other._compute_score
+        return self.score < other.score
     
     def __le__(self, other: "PromptNode"):
-        return self._compute_score <= other._compute_score
+        return self.score <= other.score
     
 
 
@@ -91,27 +100,31 @@ class QueryNode:
 
         self.is_unpreferred: Optional[bool] = None
 
-    @cached_property
-    def _compute_score(self):
-        # TODO: improvement me
-        if self.is_filtered_out is None:
+        self.score: Optional[float] = None
+
+    def get_score(self, preference_score_map: dict):
+        if self.is_filtered_out:
             return float("-inf")
-        return int(self.is_unpreferred)
+        if self.score is not None:
+            return self.score
+        score = sum(preference_score_map[criterion] for criterion, _ in self.evaluation) / len(self.evaluation)
+        self.score = score
+        return score
     
-    def __gt__(self, other: "PromptNode"):
-        return self._compute_score > other._compute_score
+    def __gt__(self, other: "QueryNode"):
+        return self.score > other.score
     
-    def __ge__(self, other: "PromptNode"):
-        return self._compute_score >= other._compute_score
+    def __ge__(self, other: "QueryNode"):
+        return self.score >= other.score
     
-    def __lt__(self, other: "PromptNode"):
-        return self._compute_score < other._compute_score
+    def __lt__(self, other: "QueryNode"):
+        return self.score < other.score
     
-    def __le__(self, other: "PromptNode"):
-        return self._compute_score <= other._compute_score
+    def __le__(self, other: "QueryNode"):
+        return self.score <= other.score
 
 
-    def to_dict(self) -> dict:
+    def to_dict(self, preference_score_map: dict) -> dict:
         return {
             "query": self.query,
             "product": self.product.get("product_name"),
@@ -122,7 +135,7 @@ class QueryNode:
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
-            "score": self._compute_score,
+            "score": self.get_score(preference_score_map),
         }
 
 
