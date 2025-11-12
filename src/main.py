@@ -63,7 +63,9 @@ def main():
             filtering_policy=args.filtering_policy,
 
             n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
-            n_query_refiment_children=args.n_query_refiment_children,
+            n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,
+            n_query_refinemnet_iterations=args.n_query_refinemnet_iterations,
+            n_query_refiment_beam_search_size=args.n_query_refiment_beam_search_size,
             n_thread_queries=args.n_thread_queries,
             n_thread_query_refiment=args.n_thread_query_refiment,
             

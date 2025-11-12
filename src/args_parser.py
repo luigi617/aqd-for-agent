@@ -16,7 +16,9 @@ class Argument:
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
         self.n_prompt_refinemnet_children = args.n_prompt_refinemnet_children
-        self.n_query_refiment_children = args.n_query_refiment_children
+        self.n_prompt_refinemnet_beam_search_size = args.n_prompt_refinemnet_beam_search_size
+        self.n_query_refinemnet_iterations = args.n_query_refinemnet_iterations
+        self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
 
         # divide threads into different place
         self.n_threads = args.n_threads
@@ -106,10 +108,24 @@ def argument_parser():
         required=False,
     )
     parser.add_argument(
-        "--n_query_refiment_children",
+        "--n_prompt_refinemnet_beam_search_size",
         type=int,
         default=3,
-        help="number of children in the tree of query refinement",
+        help="beam search size in the tree of prompt optimization",
+        required=False,
+    )
+    parser.add_argument(
+        "--n_query_refinemnet_iterations",
+        type=int,
+        default=3,
+        help="number of iterations of query refinement",
+        required=False,
+    )
+    parser.add_argument(
+        "--n_query_refiment_beam_search_size",
+        type=int,
+        default=3,
+        help="beam search size in the tree of query refinement",
         required=False,
     )
     parser.add_argument(

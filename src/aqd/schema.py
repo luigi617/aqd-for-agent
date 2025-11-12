@@ -70,14 +70,11 @@ class PromptNode:
     def __le__(self, other: "PromptNode"):
         return self._compute_score <= other._compute_score
     
-    def __eq__(self, other: "PromptNode"):
-        return self._compute_score == other._compute_score
-    
 
 
 class QueryNode:
-    def __init__(self, query: str, product: dict, attributes: List, query_improvement: Optional[str] = None):
-        self.query_improvement: Optional[str] = query_improvement
+    def __init__(self, query: str, product: dict, attributes: List, query_refinement_strategy: Optional[str] = None):
+        self.query_refinement_strategy: Optional[str] = query_refinement_strategy
         
         self.product = product
         self.attributes = attributes
@@ -94,6 +91,25 @@ class QueryNode:
 
         self.is_unpreferred: Optional[bool] = None
 
+    @cached_property
+    def _compute_score(self):
+        # TODO: improvement me
+        if self.is_filtered_out is None:
+            return float("-inf")
+        return int(self.is_unpreferred)
+    
+    def __gt__(self, other: "PromptNode"):
+        return self._compute_score > other._compute_score
+    
+    def __ge__(self, other: "PromptNode"):
+        return self._compute_score >= other._compute_score
+    
+    def __lt__(self, other: "PromptNode"):
+        return self._compute_score < other._compute_score
+    
+    def __le__(self, other: "PromptNode"):
+        return self._compute_score <= other._compute_score
+
 
     def to_dict(self) -> dict:
         return {
@@ -105,7 +121,8 @@ class QueryNode:
             "response": self.response,
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
-            "query_improvement": self.query_improvement,
+            "query_refinement_strategy": self.query_refinement_strategy,
+            "score": self._compute_score,
         }
 
 

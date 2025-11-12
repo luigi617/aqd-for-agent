@@ -27,7 +27,9 @@ class PromptSearch:
                  filtering_policy,
 
                  n_prompt_refinemnet_children,
-                 n_query_refiment_children,
+                 n_prompt_refinemnet_beam_search_size,
+                 n_query_refinemnet_iterations,
+                 n_query_refiment_beam_search_size,
                  n_thread_queries,
                  n_thread_query_refiment,
                  base_depth_output_path):
@@ -46,7 +48,9 @@ class PromptSearch:
         self.filtering_policy = filtering_policy
 
         self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
-        self.n_query_refiment_children = n_query_refiment_children
+        self.n_prompt_refinemnet_beam_search_size = n_prompt_refinemnet_beam_search_size
+        self.n_query_refinemnet_iterations = n_query_refinemnet_iterations
+        self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
         self.n_thread_queries = n_thread_queries
         self.n_thread_query_refiment = n_thread_query_refiment
 
@@ -63,9 +67,10 @@ class PromptSearch:
             preferred_definition=self.preferred_definition,
             unpreferred_definition=self.unpreferred_definition,
             filtering_policy=self.filtering_policy,
-            n_query_refiment_children=self.n_query_refiment_children,
+            n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
         )
-        return query_node, query_refinement.run(n_workers=self.n_thread_query_refiment)
+        return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
+                                                n_workers=self.n_thread_query_refiment)
 
     def _process_node(self, tree_node, allow_refine: bool):
         prompt_node: PromptNode = tree_node.value
@@ -172,25 +177,16 @@ class PromptSearch:
     
     def prune_prompt_nodes(self, prompt_nodes: List[TreeNode]) -> List[TreeNode]:
         remaining_prompt_nodes = []
-        # {prev prev node: prevn node : cur nodes}
-        prompt_nodes_relation_map = defaultdict(lambda: defaultdict(list))
+        # {prevn node : [cur nodes]}
+        prompt_nodes_relation_map = defaultdict(list)
         for prompt_node in prompt_nodes:
             parent = prompt_node.parent
-            if not parent:
-                remaining_prompt_nodes.append(prompt_node)
-                continue
-            grandparent = parent.parent
-            if not grandparent:
-                remaining_prompt_nodes.append(prompt_node)
-                continue
-            prompt_nodes_relation_map[grandparent][parent].append(prompt_node)
+            prompt_nodes_relation_map[parent].append(prompt_node)
         
-        for grandparent, parent_map in prompt_nodes_relation_map.items():
-            remaining_parents = [parent for parent in parent_map.keys() if parent.value >= grandparent.value]
-            if not remaining_parents:
-                remaining_parents = [max(parent_map.keys())]
-            for parent in remaining_parents:
-                remaining_prompt_nodes.extend(parent_map[parent])
+        parent_nodes = list(prompt_nodes_relation_map.keys())
+        remaining_parent_nodes = sorted(parent_nodes, key=lambda node: node.value)[:self.n_prompt_refinemnet_beam_search_size]
+        for parent in remaining_parent_nodes:
+            remaining_prompt_nodes.extend(prompt_nodes_relation_map[parent])
 
         return remaining_prompt_nodes
 
