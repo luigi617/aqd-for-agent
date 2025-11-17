@@ -4,6 +4,7 @@ from pydantic import Field, BaseModel
 from random import randint, choice
 
 from models.model import get_model
+from aqd.schema import PromptNode
 
 QUERY_GENERATION_PROMPT = """
 {template}
@@ -52,7 +53,7 @@ def get_random_attributes(product):
 
 
 def generate_queries(
-        prompt: str,
+        prompt_node: PromptNode,
         model_path: str, 
         products: list[dict],
         n_queries: int = 5
@@ -62,7 +63,8 @@ def generate_queries(
     Each prompt will have n_queries total after this function runs.
     """
     query_chain = get_model(model_path, QueryResponseSchema)
-        
+    
+    prompt = prompt_node.prompt
     generated_queries = []
     for _ in range(n_queries):
         
@@ -77,6 +79,7 @@ def generate_queries(
                 attributes=attributes_str,
             )
         )['query']
+        
         generated_queries.append((new_query, product, attributes))
 
     return generated_queries

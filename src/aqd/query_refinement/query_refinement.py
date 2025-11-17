@@ -37,9 +37,9 @@ class QueryRefinement:
         
         self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
 
-    def _process_node(self, tree_node, allow_refine: bool):
+    def _process_node(self, tree_node):
         query_node = tree_node.value
-        with tqdm(total=5, desc="Processing query refinement node", unit="step") as pbar:
+        with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
 
             query_node = self.filter_queries(query_node)
             pbar.update(1)
@@ -53,15 +53,11 @@ class QueryRefinement:
             pbar.update(1)
             query_node = self.modify_responses(query_node)
             pbar.update(1)
+            query_node.get_score(self.preference_score_map)
 
             tree_node.value = query_node
 
-            if not allow_refine:
-                return tree_node, []
-
-            next_queries = self.refine_query(tree_node)
-            pbar.update(1)
-        return tree_node, next_queries
+        return tree_node
 
     def run(self, max_depth = 3, n_workers = 5):
         """
@@ -77,22 +73,25 @@ class QueryRefinement:
             while current_level:
                 allow_refine = depth < max_depth
                 futures = [
-                    pool.submit(self._process_node, node, allow_refine)
+                    pool.submit(self._process_node, node)
                     for node in current_level
                 ]
 
                 next_level = []
-                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {depth}"):
-                    tree_node, next_queries = fut.result()
 
-                    if allow_refine and next_queries:
+                for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {depth}"):
+                    fut.result()
+                if allow_refine:
+                    query_tree_node_to_be_rifined = self.prune_query_nodes(current_level)
+                    for qtn in query_tree_node_to_be_rifined:
+                        next_queries = self.refine_query(qtn)
                         for q in next_queries:
-                            child = TreeNode(q, parent=tree_node)
-                            tree_node.children.append(child)
+                            child = TreeNode(q, parent=qtn)
+                            qtn.children.append(child)
                             next_level.append(child)
 
                 depth += 1
-                current_level = self.prune_query_nodes(next_level)
+                current_level = next_level
         
         return root
             
@@ -138,21 +137,8 @@ class QueryRefinement:
             next_query_nodes.append(new_query_node)
         return next_query_nodes
     
-    def prune_query_nodes(self, query_nodes: List[TreeNode]) -> List[TreeNode]:
-        remaining_query_nodes = []
-        # {prev node : [cur nodes]}
-        query_nodes_relation_map = defaultdict(list)
-        for query_node in query_nodes:
-            parent = query_node.parent
-            query_nodes_relation_map[parent].append(query_node)
-        
-        parent_nodes = list(query_nodes_relation_map.keys())
-        for parent in parent_nodes:
-            parent.value.get_score(self.preference_score_map)
-        remaining_parent_nodes = sorted(parent_nodes, key=lambda node: node.value)[:self.n_query_refiment_beam_search_size]
-        for parent in remaining_parent_nodes:
-            remaining_query_nodes.extend(query_nodes_relation_map[parent])
-
-        return remaining_query_nodes
+    def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        unfiltered_query_tree_nodes = [qtn for qtn in query_tree_nodes if qtn.value.score is not None]
+        return sorted(unfiltered_query_tree_nodes, key=lambda node: node.value)[:self.n_query_refiment_beam_search_size]
     
 

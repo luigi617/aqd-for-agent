@@ -29,7 +29,7 @@ def filter_queries(
     """
     Filters queries based on filtering policy definition.
     """
-    filter_query_chain = get_model(model_path, FilteredQuerySchema)
+    filter_query_chain = get_model(model_path, FilteredQuerySchema, retries=3)
 
     query = query_node.query
     decision = filter_query_chain(

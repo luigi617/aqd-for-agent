@@ -98,7 +98,7 @@ def evaluate_responses(
 
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
     preference_criteria_str = get_preference_criteria_str(preference_criteria_map)
-    evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map))
+    evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3)
 
     query = query_node.query
     response = query_node.response

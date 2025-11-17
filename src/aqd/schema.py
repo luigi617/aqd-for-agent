@@ -29,7 +29,7 @@ class PromptNode:
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": self.get_score(preference_score_map)
+            "score": str(self.get_score(preference_score_map))
         }
     
     def query_to_json(self, query_tree_node: "TreeNode", preference_score_map):
@@ -60,8 +60,10 @@ class PromptNode:
                 cur_query_tree_node = stack.pop()
                 cur_query_node = cur_query_tree_node.value
                 if not cur_query_node.is_filtered_out:
-                    score += (cur_query_node.get_score(preference_score_map))
-                    count += 1
+                    query_score = cur_query_node.get_score(preference_score_map)
+                    if query_score is not None:
+                        score += query_score
+                        count += 1
                 stack.extend(cur_query_tree_node.children)
         self.score = score / count if count > 0 else float("-inf")
         return self.score
@@ -104,11 +106,11 @@ class QueryNode:
 
     def get_score(self, preference_score_map: dict):
         if self.is_filtered_out:
-            return float("-inf")
+            return None
+        if self.evaluation is None or len(self.evaluation) == 0:
+            return None
         if self.score is not None:
             return self.score
-        if not self.evaluation:
-            return None
         score = sum(preference_score_map[criterion] for criterion, _ in self.evaluation) / len(self.evaluation)
         self.score = score
         return score
@@ -137,7 +139,7 @@ class QueryNode:
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
-            "score": self.get_score(preference_score_map),
+            "score": str(self.get_score(preference_score_map)),
         }
 
 

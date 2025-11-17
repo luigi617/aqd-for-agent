@@ -75,9 +75,9 @@ class PromptSearch:
         return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
                                                 n_workers=self.n_thread_query_refiment)
 
-    def _process_node(self, tree_node, allow_refine: bool):
+    def _process_node(self, tree_node):
         prompt_node: PromptNode = tree_node.value
-        with tqdm(total=5, desc="Processing prompt refinement node", unit="step") as pbar:
+        with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
             max_workers = min(self.n_thread_queries, len(prompt_node.queries))
@@ -90,24 +90,9 @@ class PromptSearch:
             pbar.update(1)
             for query_node, query_tree_node in results:
                 prompt_node.query_refinement_map[query_node] = query_tree_node
-
-            pbar.update(1)
-            if not allow_refine:
-                tree_node.value = prompt_node
-                return tree_node, []
-            
-            prompt_node = self.get_query_filter_feedback(prompt_node)
-            pbar.update(1)
-            prompt_node = self.get_unpreferred_response_feedback(prompt_node)
-            pbar.update(1)
-            
-            tree_node.value = prompt_node
-            
-            next_prompts = self.refine_prompt(prompt_node)
-            pbar.update(1)
         
-        
-        return tree_node, next_prompts
+            prompt_node.get_score(self.preference_score_map)
+        return tree_node
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):
         root_tree_node = TreeNode(self.root)
@@ -119,22 +104,29 @@ class PromptSearch:
             while current_level:
                 allow_refine = depth < max_depth
                 futures = [
-                    pool.submit(self._process_node, node, allow_refine)
+                    pool.submit(self._process_node, node)
                     for node in current_level
                 ]
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
-                    tree_node, next_prompt_nodes = fut.result()
-
-                    if allow_refine and next_prompt_nodes:
-                        for prompt_node in next_prompt_nodes:
-                            child = TreeNode(prompt_node, parent=tree_node)
-                            tree_node.children.append(child)
+                    fut.result()
+                
+                if allow_refine:
+                    prompt_tree_node_to_be_rifined = current_level if depth == 0 else self.prune_prompt_nodes(current_level)
+                    for ptn in prompt_tree_node_to_be_rifined:
+                        prompt_node = ptn.value
+                        prompt_node = self.get_query_filter_feedback(prompt_node)
+                        prompt_node = self.get_unpreferred_response_feedback(prompt_node)
+                        ptn.value = prompt_node
+                        next_prompts = self.refine_prompt(prompt_node)
+                        for next_prompt_node in next_prompts:
+                            child = TreeNode(next_prompt_node, parent=ptn)
+                            ptn.children.append(child)
                             next_level.append(child)
                 self.save_result(root_tree_node, depth)
                 depth += 1
-                current_level = self.prune_prompt_nodes(next_level)
+                current_level = next_level
         return root_tree_node
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
@@ -178,22 +170,8 @@ class PromptSearch:
 
         return next_prompt_nodes
     
-    def prune_prompt_nodes(self, prompt_nodes: List[TreeNode]) -> List[TreeNode]:
-        remaining_prompt_nodes = []
-        # {prevn node : [cur nodes]}
-        prompt_nodes_relation_map = defaultdict(list)
-        for prompt_node in prompt_nodes:
-            parent = prompt_node.parent
-            prompt_nodes_relation_map[parent].append(prompt_node)
-        
-        parent_nodes = list(prompt_nodes_relation_map.keys())
-        for parent in parent_nodes:
-            parent.value.get_score(self.preference_score_map)
-        remaining_parent_nodes = sorted(parent_nodes, key=lambda node: node.value)[:self.n_prompt_refinemnet_beam_search_size]
-        for parent in remaining_parent_nodes:
-            remaining_prompt_nodes.extend(prompt_nodes_relation_map[parent])
-
-        return remaining_prompt_nodes
+    def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        return sorted(prompt_tree_nodes, key=lambda node: node.value)[:self.n_prompt_refinemnet_beam_search_size]
 
 
     def result_to_json(self, result: TreeNode):
