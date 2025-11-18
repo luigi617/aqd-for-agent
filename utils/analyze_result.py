@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import textwrap
 
-dir_path = "gpt5-nano"
+dir_path = "gpt5-mini"
 RESULTS_PATH = f'output_data/{dir_path}/results_seedprompt0.json'
 PROMPT_ANALYSIS_PATH = f'output_data/{dir_path}/analysis/'
 os.makedirs(PROMPT_ANALYSIS_PATH, exist_ok=True)
@@ -117,11 +117,95 @@ def create_analysis_tree(data, title, output_path):
 
     # Build labels: show id and score
     labels = {
-        n: f"ID={n}\S={fmt_score(G.nodes[n]['score'])}"
+        n: f"ID={n}\nS={fmt_score(G.nodes[n]['score'])}"
         for n in G.nodes()
     }
 
+    # ---- edge colors based on parent/child score ----
+    edge_colors = []
+    for parent, child in G.edges():
+        parent_score = G.nodes[parent].get("score")
+        child_score = G.nodes[child].get("score")
+
+        color = "black"
+        try:
+            p = float(parent_score)
+            c = float(child_score)
+            if c < p:
+                color = "red"
+        except Exception:
+            pass
+
+        edge_colors.append(color)
+    # -------------------------------------------------
+
     # Draw the graph
+    plt.figure(figsize=(12, 8))
+    nx.draw(
+        G,
+        pos,
+        with_labels=False,
+        arrows=True,
+        node_size=1200,
+        edge_color=edge_colors,  # use the colors we computed
+    )
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=8)
+    plt.title(wrap_title(title, MAX_TITLE_WIDTH), fontsize=14, pad=20)
+    plt.axis("off")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def create_filtered_query_summary_tree(prompts, title, output_path):
+    """
+    Create a tree over prompts (using prompt parent_id) where each node label is:
+        prompt_id and n_filtered_root_queries / n_total_root_queries.
+    Only queries with parent_id == None are counted.
+    """
+    G = nx.DiGraph()
+
+    # Build nodes with filtered / total counts
+    for prompt in prompts:
+        pid = prompt["id"]
+        parent_pid = prompt["parent_id"]
+
+        total_root_queries = 0
+        filtered_root_queries = 0
+
+        # prompt["queries"] is a list of query-lists
+        for query_list in prompt.get("queries", []):
+            for q in query_list:
+                if q.get("parent_id") is None:
+                    total_root_queries += 1
+                    if q.get("is_filtered_out"):
+                        filtered_root_queries += 1
+
+        # store counts as attributes
+        G.add_node(pid,
+                   filtered=filtered_root_queries,
+                   total=total_root_queries)
+
+        # connect prompts according to their parent_id
+        if parent_pid is not None:
+            G.add_edge(parent_pid, pid)
+
+    # Find root prompt (parent_id == None)
+    roots = [p["id"] for p in prompts if p["parent_id"] is None]
+    if not roots:
+        raise ValueError("No root prompt found (no prompt with parent_id == None)")
+    root = roots[0]
+
+    # Compute leaf counts & layout
+    leaf_counts = compute_leaf_counts(G, root)
+    pos = hierarchy_pos_weighted(G, root, leaf_counts)
+
+    # Labels: prompt id and filtered/total
+    labels = {
+        n: f"Prompt={n}\nF={G.nodes[n]['filtered']}/{G.nodes[n]['total']}"
+        for n in G.nodes()
+    }
+
+    # Draw
     plt.figure(figsize=(12, 8))
     nx.draw(G, pos, with_labels=False, arrows=True, node_size=1200)
     nx.draw_networkx_labels(G, pos, labels=labels, font_size=8)
@@ -133,6 +217,11 @@ def create_analysis_tree(data, title, output_path):
 
 # prompt analysis
 create_analysis_tree(results, "Prompt Analysis", PROMPT_ANALYSIS_PATH + "prompt_analysis.png")
+create_filtered_query_summary_tree(
+    results,
+    "Prompt Filtered Query Summary",
+    PROMPT_ANALYSIS_PATH + "prompt_filtered_summary.png"
+)
 query_n = 0
 prompt_n = 0
 for prompt in results:
