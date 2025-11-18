@@ -1,0 +1,148 @@
+import os
+import json
+import networkx as nx
+import matplotlib.pyplot as plt
+import textwrap
+
+dir_path = "gpt5-nano"
+RESULTS_PATH = f'output_data/{dir_path}/results_seedprompt0.json'
+PROMPT_ANALYSIS_PATH = f'output_data/{dir_path}/analysis/'
+os.makedirs(PROMPT_ANALYSIS_PATH, exist_ok=True)
+
+MAX_TITLE_WIDTH = 40
+
+
+def wrap_title(title, width=40):
+    return "\n".join(textwrap.wrap(title, width))
+
+
+def fmt_score(score):
+    try:
+        return f"{float(score):.2f}"
+    except (TypeError, ValueError):
+        return "None"
+
+
+with open(RESULTS_PATH) as f:
+    results = json.load(f)
+
+
+# ---------- weighted layout helpers ----------
+
+def compute_leaf_counts(G, root):
+    """
+    Compute number of leaf descendants for each node in a tree.
+    Leaves have count 1.
+    """
+    leaf_counts = {}
+
+    def dfs(node):
+        children = list(G.successors(node))
+        if not children:
+            count = 1
+        else:
+            count = sum(dfs(c) for c in children)
+        leaf_counts[node] = count
+        return count
+
+    dfs(root)
+    return leaf_counts
+
+
+def hierarchy_pos_weighted(G, root, leaf_counts,
+                           width=1.8, vert_gap=0.7, vert_loc=0,
+                           xcenter=0.5, pos=None):
+    """
+    Hierarchical layout where each child's horizontal span is
+    proportional to the size of its subtree (leaf_counts).
+    This helps when some nodes have many children but most
+    nodes at that level stop.
+    """
+    if pos is None:
+        pos = {}
+    pos[root] = (xcenter, vert_loc)
+
+    children = list(G.successors(root))
+    if not children:
+        return pos
+
+    total_leafs = sum(leaf_counts[c] for c in children)
+    start_x = xcenter - width / 2.0
+    curr_x = start_x
+
+    for child in children:
+        child_width = width * (leaf_counts[child] / total_leafs)
+        child_center_x = curr_x + child_width / 2.0
+
+        pos = hierarchy_pos_weighted(
+            G,
+            child,
+            leaf_counts,
+            width=child_width,
+            vert_gap=vert_gap,
+            vert_loc=vert_loc - vert_gap,
+            xcenter=child_center_x,
+            pos=pos
+        )
+        curr_x += child_width
+
+    return pos
+
+
+def create_analysis_tree(data, title, output_path):
+    # Build the directed graph
+    G = nx.DiGraph()
+
+    for node in data:
+        node_id = node["id"]
+        parent_id = node["parent_id"]
+        score = node["score"]
+
+        # Add node with score as an attribute
+        G.add_node(node_id, score=score)
+
+        # Add edge from parent to child (skip if root)
+        if parent_id is not None:
+            G.add_edge(parent_id, node_id)
+
+    # Find the root (node with parent_id == None)
+    roots = [n["id"] for n in data if n["parent_id"] is None]
+    if not roots:
+        raise ValueError("No root found (no node with parent_id == None)")
+    root = roots[0]
+
+    # Compute leaf counts and positions for all nodes (weighted layout)
+    leaf_counts = compute_leaf_counts(G, root)
+    pos = hierarchy_pos_weighted(G, root, leaf_counts)
+
+    # Build labels: show id and score
+    labels = {
+        n: f"ID={n}\S={fmt_score(G.nodes[n]['score'])}"
+        for n in G.nodes()
+    }
+
+    # Draw the graph
+    plt.figure(figsize=(12, 8))
+    nx.draw(G, pos, with_labels=False, arrows=True, node_size=1200)
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=8)
+    plt.title(wrap_title(title, MAX_TITLE_WIDTH), fontsize=14, pad=20)
+    plt.axis("off")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+# prompt analysis
+create_analysis_tree(results, "Prompt Analysis", PROMPT_ANALYSIS_PATH + "prompt_analysis.png")
+query_n = 0
+prompt_n = 0
+for prompt in results:
+    for queries in prompt["queries"]:
+        roots = [q for q in queries if q["parent_id"] is None]
+        query_root = roots[0]
+        create_analysis_tree(
+            queries,
+            query_root["query"],
+            PROMPT_ANALYSIS_PATH + f"prompt_analysis_prompt{prompt_n}_query{query_n}.png"
+        )
+        query_n += 1
+    prompt_n += 1

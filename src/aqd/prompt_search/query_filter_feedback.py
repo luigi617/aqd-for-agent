@@ -11,7 +11,7 @@ You are an expert assistant participating in an iterative prompt optimization pr
 Your role is to refine and create prompts that guide the generation of user queries. These prompts are used exclusively for generating user queries, and random attribute names will be provided for this purpose.
 
 Some of the generated user queries have been filtered out based on a defined query filtering policy.
-Your task is to analyze and explain why the current prompt might have led to those filtered-out queries, and to propose concrete improvements.
+Your task is to analyze and explain why the current prompt might have led to those filtered-out queries, and to propose concrete improvements to avoid queries being filtered out.
 
 Current prompt set:
 {current_prompts}

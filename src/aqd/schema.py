@@ -18,21 +18,21 @@ class PromptNode:
 
         self.score: Optional[float] = None
 
-    def to_dict(self, preference_score_map: dict) -> dict:
+    def to_dict(self) -> dict:
         return {
             "improvement_reason": self.improvement_reason,
             "prompt": self.prompt,
-            "queries": [self.query_to_json(self.query_refinement_map[query], preference_score_map) for query in self.queries],
+            "queries": [self.query_to_json(self.query_refinement_map[query]) for query in self.queries],
             
             "query_filter_reason": self.query_filter_reason,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": str(self.get_score(preference_score_map))
+            "score": str(self.score)
         }
     
-    def query_to_json(self, query_tree_node: "TreeNode", preference_score_map):
+    def query_to_json(self, query_tree_node: "TreeNode"):
         if not query_tree_node: return []
         res = []
         node_id = 0
@@ -40,7 +40,7 @@ class PromptNode:
         while queue:
             cur_query_tree_node, parent_id = queue.popleft()
             query_node: QueryNode = cur_query_tree_node.value
-            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **query_node.to_dict(preference_score_map)}
+            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **query_node.to_dict()}
             res.append(prompt_row)
 
             for next_query_tree_node in cur_query_tree_node.children:
@@ -128,7 +128,7 @@ class QueryNode:
         return self.score <= other.score
 
 
-    def to_dict(self, preference_score_map: dict) -> dict:
+    def to_dict(self) -> dict:
         return {
             "query": self.query,
             "product": self.product.get("product_name"),
@@ -139,7 +139,7 @@ class QueryNode:
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
-            "score": str(self.get_score(preference_score_map)),
+            "score": str(self.score),
         }
 
 

@@ -183,7 +183,7 @@ class PromptSearch:
         while queue:
             cur_prompt_tree_node, parent_id = queue.popleft()
             prompt_node: PromptNode = cur_prompt_tree_node.value
-            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **prompt_node.to_dict(self.preference_score_map)}
+            prompt_row = {**{"id": node_id, "parent_id": parent_id}, **prompt_node.to_dict()}
             res.append(prompt_row)
 
             for next_prompt_tree_node in cur_prompt_tree_node.children:

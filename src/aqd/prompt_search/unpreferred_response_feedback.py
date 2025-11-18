@@ -11,7 +11,7 @@ You are an expert assistant in an iterative prompt-optimization process for the 
 Your role is to refine and create prompts that guide the generation of user queries. These prompts are used exclusively for generating user queries, and random attribute names may be provided as inputs.
 
 Some generated user queries were answered by a large language model in a non-preferred way, as defined below.
-Your task is to analyze and explain why the current prompt likely caused user queries that resulted in non-preferred responses. Additionally, propose concrete improvements to the prompt to ensure that produce user queries are more likely to elicit preferred responses.
+Your task is to analyze and explain why the current prompt likely generate user queries that resulted in non-preferred responses. Additionally, propose concrete improvements to the prompt to ensure that produce user queries are more likely to elicit non-preferred responses.
 
 Current prompt set:
 {current_prompts}
@@ -23,7 +23,7 @@ Non-preferred criteria:
 {unpreferred_criteria}
 
 Output Format:
-Return first a string explaining how the current prompt produces queries that receive non-preferred responses. Then, provide an improvement suggestions: guidance on how to refine or reword the prompt to generate user queries that are more likely to produce preferred responses.
+Return first a string explaining how the current prompt produces queries that receive non-preferred responses. Then, provide an improvement suggestions: guidance on how to refine or reword the prompt to generate user queries that are more likely to produce unpreferred responses.
 """
 
 

@@ -59,7 +59,7 @@ def main():
 
     result = {}
     for index, init_prompt in enumerate(args.initial_prompt_pool):
-        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_iter{index}')
+        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
         print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
         ps = PromptSearch(
             prompt=init_prompt,
