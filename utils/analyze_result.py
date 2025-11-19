@@ -10,6 +10,7 @@ PROMPT_ANALYSIS_PATH = f'output_data/{dir_path}/analysis/'
 os.makedirs(PROMPT_ANALYSIS_PATH, exist_ok=True)
 
 MAX_TITLE_WIDTH = 40
+helpful_score = 2
 
 
 def wrap_title(title, width=40):
@@ -215,8 +216,68 @@ def create_filtered_query_summary_tree(prompts, title, output_path):
     plt.close()
 
 
+def create_unpreferred_query_summary_tree(prompts, title, output_path):
+    
+    G = nx.DiGraph()
+
+    # Build nodes with filtered / total counts
+    for prompt in prompts:
+        pid = prompt["id"]
+        parent_pid = prompt["parent_id"]
+
+        total_queries = 0
+        unpreferred_queries = 0
+
+        # prompt["queries"] is a list of query-lists
+        for query_list in prompt.get("queries", []):
+            for q in query_list:
+                if q.get("is_filtered_out") == False and q.get("score") != "None":
+                    total_queries += 1
+                    if float(q.get("score")) < helpful_score:
+                        unpreferred_queries += 1
+
+        # store counts as attributes
+        G.add_node(pid,
+                   unpreferred=unpreferred_queries,
+                   total=total_queries)
+
+        # connect prompts according to their parent_id
+        if parent_pid is not None:
+            G.add_edge(parent_pid, pid)
+
+    # Find root prompt (parent_id == None)
+    roots = [p["id"] for p in prompts if p["parent_id"] is None]
+    if not roots:
+        raise ValueError("No root prompt found (no prompt with parent_id == None)")
+    root = roots[0]
+
+    # Compute leaf counts & layout
+    leaf_counts = compute_leaf_counts(G, root)
+    pos = hierarchy_pos_weighted(G, root, leaf_counts)
+
+    # Labels: prompt id and unpreferred/total
+    labels = {
+        n: f"Prompt={n}\nN={G.nodes[n]['unpreferred']}/{G.nodes[n]['total']}"
+        for n in G.nodes()
+    }
+
+    # Draw
+    plt.figure(figsize=(12, 8))
+    nx.draw(G, pos, with_labels=False, arrows=True, node_size=4800)
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=12)
+    plt.title(wrap_title(title, MAX_TITLE_WIDTH), fontsize=14, pad=20)
+    plt.axis("off")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
 # prompt analysis
 create_analysis_tree(results, "Prompt Analysis", PROMPT_ANALYSIS_PATH + "prompt_analysis.png")
+create_unpreferred_query_summary_tree(
+    results,
+    "Prompt Unpreferred Summary",
+    PROMPT_ANALYSIS_PATH + "prompt_unpreferred_summary.png"
+)
 create_filtered_query_summary_tree(
     results,
     "Prompt Filtered Query Summary",
