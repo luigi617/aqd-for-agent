@@ -16,7 +16,7 @@ class QueryRefinement:
     
     def __init__(self, query_node, target_model,
                  filtering_model,
-                 refinement_model, evaluation_model,
+                 refinement_model, evaluation_models,
                  preferred_definition,
                  unpreferred_definition,
                  preference_score_map,
@@ -28,7 +28,7 @@ class QueryRefinement:
         self.target_model = target_model
         self.filtering_model = filtering_model
         self.refinement_model = refinement_model
-        self.evaluation_model = evaluation_model
+        self.evaluation_models = evaluation_models
 
         self.preferred_definition = preferred_definition
         self.unpreferred_definition = unpreferred_definition
@@ -111,8 +111,9 @@ class QueryRefinement:
         return query_node
     
     def evaluate_responses(self, query_node: QueryNode) -> QueryNode:
-        criteria_chosen, reason = evaluate_responses(query_node,
-                                                     self.target_model,
+        criteria_chosen, reason, individual_evals = evaluate_responses(query_node,
+                                                     self.evaluation_models,
+                                                     self.refinement_model,
                                                      self.preferred_definition,
                                                      self.unpreferred_definition)
         query_node.is_unpreferred = False
@@ -122,6 +123,7 @@ class QueryRefinement:
                 break
         query_node.evaluation = criteria_chosen
         query_node.evaluation_reason = reason
+        query_node.individual_evaluations = individual_evals
         return query_node
     
     def modify_responses(self, query_node: QueryNode) -> QueryNode:

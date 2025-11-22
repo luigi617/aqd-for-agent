@@ -56,7 +56,6 @@ def main():
         unpreferred_definition[criterion] = info["description"]
         preference_score_map[criterion] = info["score"]
 
-
     result = {}
     for index, init_prompt in enumerate(args.initial_prompt_pool):
         save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
@@ -69,7 +68,7 @@ def main():
             refinement_model=args.refinement_model,
             target_model=args.target_model,
             filtering_model=args.filtering_model,
-            evaluation_model=args.evaluation_model,
+            evaluation_models=args.evaluation_models,
             preferred_definition=preferred_definition,
             unpreferred_definition=unpreferred_definition,
             preference_score_map=preference_score_map,

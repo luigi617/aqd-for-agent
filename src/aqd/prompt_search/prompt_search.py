@@ -21,7 +21,7 @@ class PromptSearch:
                  refinement_model,
                  target_model,
                  filtering_model,
-                 evaluation_model,
+                 evaluation_models,
                  preferred_definition,
                  unpreferred_definition,
                  preference_score_map,
@@ -42,7 +42,7 @@ class PromptSearch:
         self.refinement_model = refinement_model
         self.target_model = target_model
         self.filtering_model = filtering_model
-        self.evaluation_model = evaluation_model
+        self.evaluation_models = evaluation_models
 
         self.preferred_definition = preferred_definition
         self.unpreferred_definition = unpreferred_definition
@@ -65,7 +65,7 @@ class PromptSearch:
             target_model=self.target_model,
             filtering_model=self.filtering_model,
             refinement_model=self.refinement_model,
-            evaluation_model=self.evaluation_model,
+            evaluation_models=self.evaluation_models,
             preferred_definition=self.preferred_definition,
             unpreferred_definition=self.unpreferred_definition,
             preference_score_map=self.preference_score_map,

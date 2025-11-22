@@ -29,9 +29,9 @@ class Argument:
 
         self.generate_model = args.generate_model
         self.target_model = args.target_model
+        self.evaluation_models = args.evaluation_models
         self.filtering_model = self.generate_model
         self.refinement_model = self.generate_model
-        self.evaluation_model = self.generate_model
 
         self.output_path = args.output_path
 
@@ -72,6 +72,12 @@ def argument_parser():
         "--generate_model",
         type=str,
         help="path to generator (local/api) model",
+        required=True,
+    )
+    parser.add_argument(
+        "--evaluation_models",
+        nargs="+",
+        help="paths to evaluation (local/api) models",
         required=True,
     )
     parser.add_argument(

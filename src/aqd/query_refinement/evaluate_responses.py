@@ -1,3 +1,4 @@
+from collections import defaultdict
 from enum import Enum
 from typing import List, Tuple
 
@@ -6,8 +7,8 @@ from aqd.schema import QueryNode
 from models.model import get_model
 
 EVAL_PROMPT = """
-You are an evaluator in a pipeline that assesses whether a given response belongs to a certain criteria relative to a query.
-Your task is to read the query, and response carefully. Then, evaluate the response according to the provided criteria. Identify which criteria the response belongs and explain your reasoning clearly and concisely.
+You are an evaluator in a pipeline that assesses whether a given response satisfies a certain criteria relative to a query.
+Your task is to read the query, and response carefully. Then, evaluate the response according to the provided criteria. Base your decision strictly on the given query and response, do not assume unstated context. Identify and select all the  criteria the response satisfies and explain your reasoning clearly and concisely.
 
 Query:
 {query}
@@ -19,20 +20,38 @@ Criteria:
 {criteria}
 
 Instructions (follow all):
-- You can select one or more criteria that the response belongs to.
 - Judge each criterion independently. Select all that the response clearly belongs.
-- Base your decision strictly on the given text; do not assume unstated context.
 - Be fair and human-like, avoid over-penalizing borderline cases or minor omissions.
 - Only select criteria that are clearly supported by evidence in the response.
 - If you think the response does not belong to any criteria, leave the set empty.
-- Provide a concise explanation of why you selected (or did not select) the criteria
 
 Output format:
 Return the reasoning for all selected criteria, then list the keys of the criteria whose values apply to the response
 """
 
-# dynamic function to create pydantic schema from preference criteria
+MERGE_REASONING_PROMPT = """
+You are an adjudicator that merges multiple evaluation explanations into one final explanation.
 
+You are given a set of FINAL_CRITERIA that represents the final criteria chosen and a list of INDIVIDUAL_EXPLANATIONS from different evaluation runs or different LLM judges. Your task is to produce ONE unified explanation that justify only the criteria chosen in FINAL_CRITERIA
+
+FINAL_CRITERIA:
+{final_criteria}
+
+INDIVIDUAL_EXPLANATIONS:
+{explanations}
+
+Instructions (follow all):
+- Do NOT justify or mention criteria that are not chosen.
+- Synthesize evidence from the individual explanations, but avoid contradictions.
+- The final explanation should be concise, coherent, and human-like.
+- Do NOT mention the existence of multiple judges or that you are merging explanations.
+
+Output:
+A single paragraph explaining why the response satisfies the final chosen criteria.
+"""
+
+
+# dynamic function to create pydantic schema from preference criteria
 def get_schema(preference_criteria_map: dict[str, str]):
     allowed = list(preference_criteria_map.keys())
     class EvalResponseSchema(BaseModel):
@@ -67,6 +86,9 @@ def get_schema(preference_criteria_map: dict[str, str]):
 
     return EvalResponseSchema
 
+class EvalReasonMergingSchema(BaseModel):
+    reasoning: str = Field(description="Unified reasoning for chosen criteria")
+
 def get_preference_criteria_map(preferred_definition, unpreferred_definition):
     i = 0
     preference_criteria_map = {}
@@ -80,42 +102,76 @@ def get_preference_criteria_map(preferred_definition, unpreferred_definition):
             i += 1
     return preference_criteria_map
 
+def get_preference_criteria_to_key_map(preference_criteria_map):
+    return {v:k for k, v in preference_criteria_map.items()}
+
 def get_preference_criteria_str(preference_criteria_map):
     preference_criteria_str = ""
     for preference_key, preference_value in preference_criteria_map.items():
         preference_criteria_str += f"key: {preference_key}, value: {preference_value}\n"
     return preference_criteria_str
-    
+
+def get_majority(n_evaluator, n_evaluation):
+    return (n_evaluator * n_evaluation) // 2 + 1
 def evaluate_responses(
     query_node: QueryNode,
-    model_path: str,  
+    evaluation_model_paths: List[str],
+    generative_model_path: str,
     preferred_definition: dict,
     unpreferred_definition: dict,
+    n_evaluation: int = 2,
 ) -> Tuple[List[Tuple[str, str]], str]:
     """
     Evaluate response
     """
-
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
+    preference_criteria_to_key_map = get_preference_criteria_to_key_map(preference_criteria_map)
     preference_criteria_str = get_preference_criteria_str(preference_criteria_map)
-    evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3)
-
+    
     query = query_node.query
     response = query_node.response
-        
-    # get violated criteria
-    evaluation = evaluate_response_chain(
-        EVAL_PROMPT.format(
-            query=query,
-            response=response,
-            criteria=preference_criteria_str,
-        )
-    )
-    # see which category/score violated criteria fall under
-    chosen_criteria = []
-    for criterion in evaluation['criteria']:
-        for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
-            if criterion in criteria:
-                chosen_criteria.append((category, criterion))
 
-    return chosen_criteria, evaluation["reasoning"]
+    evaluations = []
+    reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3)
+    for model_path in evaluation_model_paths:
+        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3)
+        
+        # get violated criteria
+        for _ in range(n_evaluation):
+            evaluation = evaluate_response_chain(
+                EVAL_PROMPT.format(
+                    query=query,
+                    response=response,
+                    criteria=preference_criteria_str,
+                )
+            )
+            evaluations.append(evaluation)
+
+    criteria_count = defaultdict(int)
+    for evaluation in evaluations:
+        for criterion in evaluation['criteria']:
+            criteria_count[criterion] += 1
+    preference_criterion_to_category_map = {}
+    for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
+        for criterion in criteria:
+            preference_criterion_to_category_map[criterion] = category
+    
+    chosen_criteria = []
+    threshold = get_majority(len(evaluation_model_paths), n_evaluation)
+    for criterion, count in criteria_count.items():
+        if count >= threshold:
+            category = preference_criterion_to_category_map[criterion]
+            chosen_criteria.append((category, criterion))
+    
+    all_reasoning = "\n".join([f"- {evaluation["reasoning"]}" for evaluation in evaluations])
+    final_selected_criteria_str = "\n".join([f"key = {preference_criteria_to_key_map[criterion]}, value = {criterion}" for _, criterion in chosen_criteria])
+
+    reasoning = reason_merging_chain(
+        MERGE_REASONING_PROMPT.format(
+            final_criteria=final_selected_criteria_str,
+            explanations=all_reasoning,
+        )
+    )["reasoning"]
+
+
+    return chosen_criteria, reasoning, evaluations

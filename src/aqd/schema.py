@@ -97,6 +97,8 @@ class QueryNode:
         
         self.response: str = ""
 
+        self.individual_evaluations: List[Any] = []
+
         self.evaluation: List[Tuple[str, str]] = []
         self.evaluation_reason: str = ""
 
@@ -136,6 +138,7 @@ class QueryNode:
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,
             "response": self.response,
+            "evaluation": self.individual_evaluations,
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
