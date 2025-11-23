@@ -7,11 +7,13 @@ from models.model import get_model
 
 
 UNPREFERRED_RESPONSE_FEEDBACK_PROMPT = """
-You are an expert assistant in an iterative prompt-optimization process for the e-commerce domain.
-Your role is to refine and create prompts that guide the generation of user queries. These prompts are used exclusively for generating user queries, and random attribute names may be provided as inputs.
+You are an expert assistant participating in an iterative prompt-optimization process for the e-commerce domain.
+Your role is to analyze a set of user-query and response examples and their corresponding evaluation results, then provide feedback to help refine a prompt that will be used to generate future user query.
 
-Some generated user queries were answered by a large language model in a non-preferred way, as defined below.
-Your task is to analyze and explain why the current prompt likely generate user queries that resulted in non-preferred responses. Additionally, propose concrete improvements to the prompt to ensure that produce user queries are more likely to elicit non-preferred responses.
+The prompt you aim to refine will later be combined with a product name and several random attribute names to form a complete prompt. This complete prompt will be used exclusively for generating a user query that must comply with a given query-filtering policy.
+
+Below, you will find generated user queries that resulted in non-preferred responses from an AI agent, based on the defined non-preferred criteria.
+Your task is to analyze and explain why the current prompt likely produced user queries that elicited these non-preferred responses from the agent, in order to clarify why the agent failed to respond in a preferred way. Additionally, propose concrete improvements to the prompt to ensure it generates user queries that, when presented to the same AI agent, are more likely to trigger non-preferred responses.
 
 Current prompt set:
 {current_prompts}
@@ -23,7 +25,7 @@ Non-preferred criteria:
 {unpreferred_criteria}
 
 Output Format:
-Return first a string explaining how the current prompt produces queries that receive non-preferred responses. Then, provide an improvement suggestions: guidance on how to refine or reword the prompt to generate user queries that are more likely to produce unpreferred responses.
+Return first a clear explaination on how the current prompt produces query that receive non-preferred responses. Then, provide specific, actionable improvement suggestions on how to refine or reword the prompt to generate user queries that are more likely to produce unpreferred responses.
 """
 
 

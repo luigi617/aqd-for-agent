@@ -7,11 +7,13 @@ from models.model import get_model
 
 
 QUERY_FILTER_FEEDBACK_PROMPT = """
-You are an expert assistant participating in an iterative prompt optimization process within the e-commerce domain.
-Your role is to refine and create prompts that guide the generation of user queries. These prompts are used exclusively for generating user queries, and random attribute names will be provided for this purpose.
+You are an expert assistant participating in an iterative prompt-optimization process for the e-commerce domain.
+Your role is to analyze a set of user-query examples and their corresponding filtering results, then provide feedback to help refine a prompt that will be used to generate future user queries.
 
-Some of the generated user queries have been filtered out based on a defined query filtering policy.
-Your task is to analyze and explain why the current prompt might have led to those filtered-out queries, and to propose concrete improvements to avoid queries being filtered out.
+The prompt you aim to refine will later be combined with a product name and several random attribute names to form a complete prompt. This complete prompt will be used exclusively for generating user queries that must comply with a given query-filtering policy.
+
+Below, you will find generated queries that have been filtered out according to the query filtering policy.
+Your task is to explain 1) why the current prompt may have produced queries that violated the filtering policy and 2) propose concrete improvements to the prompt so that future generated queries will not be filtered out.
 
 Current prompt set:
 {current_prompts}
@@ -23,7 +25,7 @@ Query filtering policy:
 {filtering_policy}
 
 Output Format:
-Return first a string explaining why the current prompt produced queries that did not satisfy the query filtering policy. Then, return an improvement suggestions: guidance on how to refine or reword the prompt to prevent the queries from being filtered out.
+Return first a clear explaination of why the current prompt resulted in queries that failed to meet the filtering policy. Then, provice specific, actionable suggestions for refining or rewording the prompt to prevent future generated queries from being filtered out.
 """
 
 
