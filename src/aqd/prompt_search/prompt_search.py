@@ -177,17 +177,22 @@ class PromptSearch:
     def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         beam = self.n_prompt_refinemnet_beam_search_size
 
-        sorted_nodes = sorted(prompt_tree_nodes, key=lambda node: node.value)
+        sorted_nodes = sorted(prompt_tree_nodes, key=lambda n: n.value.score)
 
         if len(sorted_nodes) <= beam:
             return sorted_nodes
-        truncated = sorted_nodes[:beam]
-        cutoff_value = truncated[-1].value
+        
+        cutoff_score = sorted_nodes[beam - 1].value.score
 
-        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
-        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+        strictly_better = [n for n in sorted_nodes if n.value.score < cutoff_score]
+        tied_group = [n for n in sorted_nodes if n.value.score == cutoff_score]
 
         need = beam - len(strictly_better)
+        if need <= 0:
+            return strictly_better[:beam]
+
+        if need >= len(tied_group):
+            return (strictly_better + tied_group)[:beam]
         chosen_from_ties = random.sample(tied_group, need)
 
         return strictly_better + chosen_from_ties

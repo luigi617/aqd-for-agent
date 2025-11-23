@@ -143,22 +143,29 @@ class QueryRefinement:
         return next_query_nodes
     
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
-        unfiltered = [n for n in query_tree_nodes if n.value.score is not None]
+        valid_nodes = [n for n in query_tree_nodes if n.value.score is not None]
 
         beam = self.n_query_refiment_beam_search_size
-        sorted_nodes = sorted(unfiltered, key=lambda node: node.value)
+        if len(valid_nodes) <= beam:
+            return valid_nodes
 
-        if len(sorted_nodes) <= beam:
-            return sorted_nodes
+        sorted_nodes = sorted(valid_nodes, key=lambda node: node.value.score)
 
-        truncated = sorted_nodes[:beam]
-        cutoff_value = truncated[-1].value
+        cutoff_score = sorted_nodes[beam - 1].value.score
 
-        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
-        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+        strictly_better = [n for n in sorted_nodes if n.value.score < cutoff_score]
+        tied_group = [n for n in sorted_nodes if n.value.score == cutoff_score]
 
         need = beam - len(strictly_better)
 
+        # Safety guards (cheap + avoids the ValueError)
+        if need <= 0:
+            return strictly_better[:beam]
+
+        if need >= len(tied_group):
+            # Take all ties, truncate if slightly over
+            return (strictly_better + tied_group)[:beam]
+    
         chosen_from_ties = random.sample(tied_group, need)
 
         return strictly_better + chosen_from_ties

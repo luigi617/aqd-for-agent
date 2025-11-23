@@ -65,7 +65,7 @@ class PromptNode:
                         score += query_score
                         count += 1
                 stack.extend(cur_query_tree_node.children)
-        self.score = score / count if count > 0 else float("-inf")
+        self.score = score / count if count > 0 else float("inf")
         return self.score
     
     
