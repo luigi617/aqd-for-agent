@@ -1,5 +1,6 @@
 import json
 import os
+import random
 from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -171,7 +172,22 @@ class PromptSearch:
         return next_prompt_nodes
     
     def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
-        return sorted(prompt_tree_nodes, key=lambda node: node.value)[:self.n_prompt_refinemnet_beam_search_size]
+        beam = self.n_prompt_refinemnet_beam_search_size
+
+        sorted_nodes = sorted(prompt_tree_nodes, key=lambda node: node.value)
+
+        if len(sorted_nodes) <= beam:
+            return sorted_nodes
+        truncated = sorted_nodes[:beam]
+        cutoff_value = truncated[-1].value
+
+        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
+        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+
+        need = beam - len(strictly_better)
+        chosen_from_ties = random.sample(tied_group, need)
+
+        return strictly_better + chosen_from_ties
 
 
     def result_to_json(self, result: TreeNode):

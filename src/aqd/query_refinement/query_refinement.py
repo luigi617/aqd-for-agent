@@ -1,3 +1,4 @@
+import random
 from collections import defaultdict, deque
 from tqdm import tqdm
 from typing import List, Optional, Tuple
@@ -140,7 +141,24 @@ class QueryRefinement:
         return next_query_nodes
     
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
-        unfiltered_query_tree_nodes = [qtn for qtn in query_tree_nodes if qtn.value.score is not None]
-        return sorted(unfiltered_query_tree_nodes, key=lambda node: node.value)[:self.n_query_refiment_beam_search_size]
+        unfiltered = [n for n in query_tree_nodes if n.value.score is not None]
+
+        beam = self.n_query_refiment_beam_search_size
+        sorted_nodes = sorted(unfiltered, key=lambda node: node.value)
+
+        if len(sorted_nodes) <= beam:
+            return sorted_nodes
+
+        truncated = sorted_nodes[:beam]
+        cutoff_value = truncated[-1].value
+
+        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
+        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+
+        need = beam - len(strictly_better)
+
+        chosen_from_ties = random.sample(tied_group, need)
+
+        return strictly_better + chosen_from_ties
     
 
