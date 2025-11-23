@@ -22,6 +22,7 @@ class QueryRefinement:
                  unpreferred_definition,
                  preference_score_map,
                  filtering_policy,
+                 query_refinement_strategies,
                  n_query_refiment_beam_search_size):
         
         self.root: QueryNode = query_node
@@ -35,6 +36,7 @@ class QueryRefinement:
         self.unpreferred_definition = unpreferred_definition
         self.preference_score_map = preference_score_map
         self.filtering_policy = filtering_policy
+        self.query_refinement_strategies = query_refinement_strategies
         
         self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
 
@@ -133,7 +135,7 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         query_node = tree_node.value
-        proposed_queries: List[Tuple[str, str]] = refine_query(tree_node, self.refinement_model)
+        proposed_queries: List[Tuple[str, str]] = refine_query(tree_node, self.refinement_model, self.query_refinement_strategies)
         next_query_nodes = []
         for query, strategy in proposed_queries:
             new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_refinement_strategy=strategy)

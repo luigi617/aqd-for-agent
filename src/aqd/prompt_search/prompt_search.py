@@ -27,6 +27,7 @@ class PromptSearch:
                  unpreferred_definition,
                  preference_score_map,
                  filtering_policy,
+                 query_refinement_strategies,
 
                  n_prompt_refinemnet_children,
                  n_prompt_refinemnet_beam_search_size,
@@ -49,6 +50,7 @@ class PromptSearch:
         self.unpreferred_definition = unpreferred_definition
         self.preference_score_map = preference_score_map
         self.filtering_policy = filtering_policy
+        self.query_refinement_strategies = query_refinement_strategies
 
         self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
         self.n_prompt_refinemnet_beam_search_size = n_prompt_refinemnet_beam_search_size
@@ -71,6 +73,7 @@ class PromptSearch:
             unpreferred_definition=self.unpreferred_definition,
             preference_score_map=self.preference_score_map,
             filtering_policy=self.filtering_policy,
+            query_refinement_strategies=self.query_refinement_strategies,
             n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
         )
         return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,

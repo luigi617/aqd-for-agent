@@ -73,6 +73,7 @@ def main():
             unpreferred_definition=unpreferred_definition,
             preference_score_map=preference_score_map,
             filtering_policy=args.filtering_policy,
+            query_refinement_strategies=args.query_refinement_strategies,
 
             n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
             n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,

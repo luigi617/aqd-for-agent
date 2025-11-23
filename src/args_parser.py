@@ -1,6 +1,20 @@
 import argparse
 import json
 from pathlib import Path
+
+# Stretegy instructions taken from https://arxiv.org/pdf/2310.13345
+DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
+    "Choose at most two words in the sentence, and change them so that they have typos.",
+    "Change at most two letters in the sentence.",
+    "Add at most two extraneous characters to the end of the sentence.",
+    "Replace at most two words in the sentence with synonyms.",
+    "Choose at most two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
+    "Add at most two semantically neutral words to the sentence.",
+    "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
+    "Paraphrase the sentence.",
+    "Change the syntactic structure of the sentence.",
+]
+
 class Argument:
     def __init__(self, args):
         self.seed = args.seed
@@ -12,6 +26,11 @@ class Argument:
         self.filtering_policy = args.filtering_policy.open().read()
         self.preferred_definition = json.load(args.preferred_definition.open())
         self.unpreferred_definition = json.load(args.unpreferred_definition.open())
+        
+        if args.query_refinement_strategies and isinstance(args.query_refinement_strategies, Path):
+            self.query_refinement_strategies = json.load(args.query_refinement_strategies.open())
+        else:
+            self.query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
 
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
@@ -67,6 +86,13 @@ def argument_parser():
         type=Path,
         help="path to unpreferred definition w/ criteria",
         required=True,
+    )
+    parser.add_argument(
+        "--query_refinement_strategies",
+        type=Path,
+        help="path to list of query refinement strategies",
+        default=None,
+        required=False,
     )
     parser.add_argument(
         "--generate_model",
