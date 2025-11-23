@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import textwrap
 
-dir_path = "gpt5-mini"
+dir_path = "gpt5-mini-not-good"
 RESULTS_PATH = f'output_data/{dir_path}/results_seedprompt0.json'
 PROMPT_ANALYSIS_PATH = f'output_data/{dir_path}/analysis/'
 os.makedirs(PROMPT_ANALYSIS_PATH, exist_ok=True)
