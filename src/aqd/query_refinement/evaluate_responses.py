@@ -3,6 +3,7 @@ from enum import Enum
 from typing import List, Tuple
 
 from pydantic import Field, BaseModel, field_validator
+from aqd.budget import Budget
 from aqd.schema import QueryNode
 from models.model import get_model
 
@@ -118,9 +119,10 @@ def evaluate_responses(
     query_node: QueryNode,
     evaluation_model_paths: List[str],
     generative_model_path: str,
+    budget: Budget,
     preferred_definition: dict,
     unpreferred_definition: dict,
-    n_evaluation: int = 2,
+    n_evaluation: int = 1,
 ) -> Tuple[List[Tuple[str, str]], str]:
     """
     Evaluate response
@@ -133,9 +135,9 @@ def evaluate_responses(
     response = query_node.response
 
     evaluations = []
-    reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3)
+    reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3, budget=budget)
     for model_path in evaluation_model_paths:
-        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3)
+        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3, budget=budget)
         
         # get violated criteria
         for _ in range(n_evaluation):

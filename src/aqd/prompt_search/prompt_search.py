@@ -7,7 +7,6 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-from aqd.budget import CURRENT_BUDGET
 from aqd.schema import PromptNode, QueryNode, TreeNode
 from aqd.prompt_search.generate_queries import generate_queries
 from aqd.prompt_search.refine_prompt import refine_prompt
@@ -37,7 +36,10 @@ class PromptSearch:
                  n_query_refiment_beam_search_size,
                  n_thread_queries,
                  n_thread_query_refiment,
-                 base_depth_output_path):
+
+                 base_depth_output_path,
+                 budget,
+                 ):
         self.root: PromptNode = PromptNode(prompt)
         self.products: List[dict] = products
         self.n_queries: int = n_queries
@@ -62,6 +64,7 @@ class PromptSearch:
         self.n_thread_query_refiment = n_thread_query_refiment
 
         self.base_depth_output_path = base_depth_output_path
+        self.budget = budget
 
 
     def _run_single_query_refinement(self, query_node):
@@ -77,6 +80,7 @@ class PromptSearch:
             filtering_policy=self.filtering_policy,
             query_refinement_strategies=self.query_refinement_strategies,
             n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
+            budget=self.budget,
         )
         return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
                                                 n_workers=self.n_thread_query_refiment)
@@ -89,9 +93,8 @@ class PromptSearch:
             pbar.update(1)
             max_workers = min(self.n_thread_queries, len(prompt_node.queries))
             results = []
-            ctx = contextvars.copy_context()
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
-                futures = [inner_pool.submit(ctx.run, self._run_single_query_refinement, q) for q in prompt_node.queries]
+                futures = [inner_pool.submit(self._run_single_query_refinement, q) for q in prompt_node.queries]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
                     query_node, query_tree_node = fut.result()
                     results.append((query_node, query_tree_node))
@@ -108,13 +111,11 @@ class PromptSearch:
         current_level = [root_tree_node]
         depth = 0
 
-        ctx = contextvars.copy_context()
-
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
             
             while current_level:
                 allow_refine = depth < max_depth
-                futures = [pool.submit(ctx.run, self._process_node, node) for node in current_level]
+                futures = [pool.submit(self._process_node, node) for node in current_level]
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
@@ -138,13 +139,13 @@ class PromptSearch:
         return root_tree_node
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
-        queries = generate_queries(prompt_node, self.generate_model, self.products, self.n_queries)
+        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, self.n_queries)
         for query, product, attribute in queries:
             prompt_node.queries.append(QueryNode(query, product, attribute))
         return prompt_node
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = query_filter_feedback(prompt_node, self.refinement_model, self.filtering_policy)
+        res = query_filter_feedback(prompt_node, self.refinement_model, self.budget, self.filtering_policy)
         reason, improvement_suggestions = res
 
         prompt_node.query_filter_reason = reason
@@ -153,7 +154,7 @@ class PromptSearch:
         return prompt_node
 
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.unpreferred_definition)
+        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.budget, self.unpreferred_definition)
         reason, improvement_suggestions = res
 
         prompt_node.unpreferred_response_reason = reason
@@ -165,6 +166,7 @@ class PromptSearch:
         new_promtps = refine_prompt(
             prompt_node,
             self.refinement_model,
+            self.budget,
             self.filtering_policy,
             self.preferred_definition,
             self.unpreferred_definition,

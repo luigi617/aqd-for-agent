@@ -24,7 +24,8 @@ class QueryRefinement:
                  preference_score_map,
                  filtering_policy,
                  query_refinement_strategies,
-                 n_query_refiment_beam_search_size):
+                 n_query_refiment_beam_search_size,
+                 budget,):
         
         self.root: QueryNode = query_node
 
@@ -40,6 +41,7 @@ class QueryRefinement:
         self.query_refinement_strategies = query_refinement_strategies
         
         self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
+        self.budget = budget
 
     def _process_node(self, tree_node):
         query_node = tree_node.value
@@ -73,13 +75,11 @@ class QueryRefinement:
         current_level = [root]
         depth = 0
 
-        ctx = contextvars.copy_context()
-
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
             while current_level:
                 allow_refine = depth < max_depth
                 futures = [
-                    pool.submit(ctx.run, self._process_node, node)
+                    pool.submit(self._process_node, node)
                     for node in current_level
                 ]
 
@@ -106,13 +106,14 @@ class QueryRefinement:
     def filter_queries(self, query_node: QueryNode) -> QueryNode:
         satisfy_filter, reasoning = filter_queries(query_node,
                                                    self.filtering_model,
+                                                   self.budget,
                                                    self.filtering_policy)
         query_node.is_filtered_out = not satisfy_filter
         query_node.filtering_reason = reasoning
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.target_model)
+        response = generate_response(query_node, self.target_model, self.budget,)
         query_node.response = response
         return query_node
     
@@ -120,6 +121,7 @@ class QueryRefinement:
         criteria_chosen, reason, individual_evals = evaluate_responses(query_node,
                                                      self.evaluation_models,
                                                      self.refinement_model,
+                                                     self.budget,
                                                      self.preferred_definition,
                                                      self.unpreferred_definition)
         query_node.is_unpreferred = False
@@ -138,7 +140,12 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         query_node = tree_node.value
-        proposed_queries: List[Tuple[str, str]] = refine_query(tree_node, self.refinement_model, self.query_refinement_strategies)
+        proposed_queries: List[Tuple[str, str]] = refine_query(
+            tree_node,
+            self.refinement_model,
+            self.budget,
+            self.query_refinement_strategies
+        )
         next_query_nodes = []
         for query, strategy in proposed_queries:
             new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_refinement_strategy=strategy)

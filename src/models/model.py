@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from langchain_core.exceptions import OutputParserException
-from aqd.budget import CURRENT_BUDGET
+from aqd.budget import Budget
 from models.deepseek import get_deepseek
 from models.gemini import get_gemini
 from models.ollama import get_ollama
@@ -51,6 +51,7 @@ def get_model(
     max_delay: float = 30.0,
     timeout: int = 120,
     all_fail_raise: bool = True,
+    budget: Budget = None,
 ):
     """
     Builds a JSON-only chain and returns a simple function:
@@ -86,9 +87,9 @@ def get_model(
                     completion_tokens=usage_cb.completion_tokens,
                     cached_prompt_tokens=usage_cb.cached_prompt_tokens,
                 )
-                budget = CURRENT_BUDGET.get()
+                print(f"{budget=}")
                 if budget is not None and cost_usd is not None:
-                    budget.add(cost_usd)
+                    budget.add_or_raise(cost_usd)
 
                 return model_obj.model_dump()
                 

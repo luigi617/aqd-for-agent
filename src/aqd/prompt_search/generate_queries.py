@@ -3,6 +3,7 @@ from tqdm import tqdm
 from pydantic import Field, BaseModel
 from random import randint, choice
 
+from aqd.budget import Budget
 from models.model import get_model
 from aqd.schema import PromptNode
 
@@ -55,14 +56,15 @@ def get_random_attributes(product):
 def generate_queries(
         prompt_node: PromptNode,
         model_path: str, 
+        budget: Budget,
         products: list[dict],
-        n_queries: int = 5
+        n_queries: int = 5,
     ) -> List[Tuple[str, dict, list]]:
     """
     Generate queries based the prompt pool with product attributes.
     Each prompt will have n_queries total after this function runs.
     """
-    query_chain = get_model(model_path, QueryResponseSchema)
+    query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
     
     prompt = prompt_node.prompt
     generated_queries = []

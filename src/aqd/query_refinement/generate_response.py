@@ -1,5 +1,6 @@
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from aqd.budget import Budget
 from aqd.schema import QueryNode
 from models.model import get_model
 
@@ -33,12 +34,13 @@ def get_all_attribute_with_value(product):
 def generate_response(
         query_node: QueryNode,
         model_path: str,
+        budget: Budget,
     ) -> str:
     """
     Generate response
     """
 
-    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True)
+    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
     
     query = query_node.query
     product = query_node.product
