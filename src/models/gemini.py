@@ -23,6 +23,7 @@ def get_gemini(
         model=model_name,
         temperature=temperature,
         timeout=timeout,
+        convert_system_message_to_human=True,
     )
 
     llm_structured = base_llm.with_structured_output(pydantic_model)
