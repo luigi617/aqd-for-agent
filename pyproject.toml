@@ -19,6 +19,7 @@ dependencies = [
     "langchain-core",
     "langchain-openai",
     "langchain-deepseek",
+    "langchain-google-genai",
     "langchain-huggingface",
     "langchain-ollama",
     "langgraph",
