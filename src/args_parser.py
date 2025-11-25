@@ -52,6 +52,8 @@ class Argument:
         self.filtering_model = self.generate_model
         self.refinement_model = self.generate_model
 
+        self.budget = args.budget
+
         self.output_path = args.output_path
 
 def argument_parser():
@@ -165,6 +167,13 @@ def argument_parser():
         type=int,
         default=1,
         help="number of parallel worker threads for each LLM node",
+        required=False,
+    )
+    parser.add_argument(
+        "--budget",
+        type=float,
+        default=100,
+        help="budget to spent, if not set 100 usd",
         required=False,
     )
     parser.add_argument(

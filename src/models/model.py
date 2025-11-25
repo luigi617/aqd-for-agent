@@ -8,9 +8,12 @@ from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from langchain_core.exceptions import OutputParserException
+from aqd.budget import CURRENT_BUDGET
 from models.deepseek import get_deepseek
 from models.ollama import get_ollama
 from models.gpt import get_openai
+
+from models.costs import TokenUsageCallback, compute_cost_usd
 
 
 
@@ -67,9 +70,27 @@ def get_model(
         attempt = 0
         while attempt < max_tries:
             try:
-                out = chain.invoke({"prompt": prompt_text})
+                usage_cb = TokenUsageCallback()
+                out = chain.invoke(
+                    {"prompt": prompt_text},
+                    config={"callbacks": [usage_cb]},
+                )
                 model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                prompt_tokens = usage_cb.prompt_tokens
+                completion_tokens = usage_cb.completion_tokens
+
+                cost_usd = compute_cost_usd(
+                    model_name,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
+                budget = CURRENT_BUDGET.get()
+                print(f"{budget=}")
+                if budget is not None and cost_usd is not None:
+                    budget.add(cost_usd)
+
                 return model_obj.model_dump()
+                
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e
             except Exception as e:

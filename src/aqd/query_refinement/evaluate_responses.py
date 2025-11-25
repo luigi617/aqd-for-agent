@@ -113,6 +113,7 @@ def get_preference_criteria_str(preference_criteria_map):
 
 def get_majority(n_evaluator, n_evaluation):
     return (n_evaluator * n_evaluation) // 2 + 1
+
 def evaluate_responses(
     query_node: QueryNode,
     evaluation_model_paths: List[str],

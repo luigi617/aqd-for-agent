@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from dotenv import load_dotenv
+from aqd.budget import CURRENT_BUDGET, BudgetExceededError, llm_budget
 from args_parser import Argument, argument_parser
 from aqd.query_refinement.query_refinement import QueryRefinement
 from aqd.schema import QueryNode
@@ -57,40 +58,46 @@ def main():
         preference_score_map[criterion] = info["score"]
 
     result = {}
-    for index, init_prompt in enumerate(args.initial_prompt_pool):
-        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
-        print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
-        ps = PromptSearch(
-            prompt=init_prompt,
-            products=args.products,
-            n_queries=args.n_queries,
-            generate_model=args.generate_model,
-            refinement_model=args.refinement_model,
-            target_model=args.target_model,
-            filtering_model=args.filtering_model,
-            evaluation_models=args.evaluation_models,
-            preferred_definition=preferred_definition,
-            unpreferred_definition=unpreferred_definition,
-            preference_score_map=preference_score_map,
-            filtering_policy=args.filtering_policy,
-            query_refinement_strategies=args.query_refinement_strategies,
+    with llm_budget(limit_usd=args.budget) as b:
+        for index, init_prompt in enumerate(args.initial_prompt_pool):
+            save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
+            print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
+            try:
+                
+                ps = PromptSearch(
+                    prompt=init_prompt,
+                    products=args.products,
+                    n_queries=args.n_queries,
+                    generate_model=args.generate_model,
+                    refinement_model=args.refinement_model,
+                    target_model=args.target_model,
+                    filtering_model=args.filtering_model,
+                    evaluation_models=args.evaluation_models,
+                    preferred_definition=preferred_definition,
+                    unpreferred_definition=unpreferred_definition,
+                    preference_score_map=preference_score_map,
+                    filtering_policy=args.filtering_policy,
+                    query_refinement_strategies=args.query_refinement_strategies,
 
-            n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
-            n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,
-            n_query_refinemnet_iterations=args.n_query_refinemnet_iterations,
-            n_query_refiment_beam_search_size=args.n_query_refiment_beam_search_size,
-            n_thread_queries=args.n_thread_queries,
-            n_thread_query_refiment=args.n_thread_query_refiment,
-            
-            base_depth_output_path=save_iter_path,
-        )
+                    n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
+                    n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,
+                    n_query_refinemnet_iterations=args.n_query_refinemnet_iterations,
+                    n_query_refiment_beam_search_size=args.n_query_refiment_beam_search_size,
+                    n_thread_queries=args.n_thread_queries,
+                    n_thread_query_refiment=args.n_thread_query_refiment,
+                    
+                    base_depth_output_path=save_iter_path,
+                )
 
-        prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
-        prompt_search_res_json = ps.result_to_json(prompt_search_res)
-        
-        save_result(prompt_search_res_json, save_iter_path)
+                prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
+                prompt_search_res_json = ps.result_to_json(prompt_search_res)
+                
+                save_result(prompt_search_res_json, save_iter_path)
 
-        result[init_prompt] = prompt_search_res_json
+                result[init_prompt] = prompt_search_res_json
+                print("Spent:", b.spent_usd, "remaining:", b.remaining_usd)
+            except Exception as e:
+                print("Pipeline stopped:", e)
 
     save_result(result, args.output_path)
     print(f"PROMPT OPTIMIZATION: DONE")

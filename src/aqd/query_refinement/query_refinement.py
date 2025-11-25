@@ -1,3 +1,4 @@
+import contextvars
 import random
 from collections import defaultdict, deque
 from tqdm import tqdm
@@ -72,11 +73,13 @@ class QueryRefinement:
         current_level = [root]
         depth = 0
 
+        ctx = contextvars.copy_context()
+
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
             while current_level:
                 allow_refine = depth < max_depth
                 futures = [
-                    pool.submit(self._process_node, node)
+                    pool.submit(ctx.run, self._process_node, node)
                     for node in current_level
                 ]
 
