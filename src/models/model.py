@@ -10,6 +10,7 @@ from openai import APIConnectionError, APITimeoutError, RateLimitError
 from langchain_core.exceptions import OutputParserException
 from aqd.budget import CURRENT_BUDGET
 from models.deepseek import get_deepseek
+from models.gemini import get_gemini
 from models.ollama import get_ollama
 from models.gpt import get_openai
 
@@ -35,6 +36,8 @@ def _get_base_llm(
         return get_deepseek(model_name, pydantic_model, temperature, timeout)
     elif "gpt" in model_name:
         return get_openai(model_name, pydantic_model, temperature, timeout)
+    elif "gemini" in model_name:
+        return get_gemini(model_name, pydantic_model, temperature, timeout)
 
     raise RuntimeError("LLM not available for the given model_name")
 
@@ -76,16 +79,14 @@ def get_model(
                     config={"callbacks": [usage_cb]},
                 )
                 model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
-                prompt_tokens = usage_cb.prompt_tokens
-                completion_tokens = usage_cb.completion_tokens
 
                 cost_usd = compute_cost_usd(
                     model_name,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
+                    prompt_tokens=usage_cb.prompt_tokens,
+                    completion_tokens=usage_cb.completion_tokens,
+                    cached_prompt_tokens=usage_cb.cached_prompt_tokens,
                 )
                 budget = CURRENT_BUDGET.get()
-                print(f"{budget=}")
                 if budget is not None and cost_usd is not None:
                     budget.add(cost_usd)
 
