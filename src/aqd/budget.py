@@ -41,7 +41,6 @@ class Budget:
         """
         Same as try_add, but raises BudgetExceededError if insufficient.
         """
-        print(self.spent_usd, self.limit_usd, self.spent_usd / self.limit_usd)
         if not self.try_add(delta_usd):
             raise BudgetExceededError(
                 f"Budget exceeded: attempted spend {delta_usd:.6f}, "

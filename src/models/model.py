@@ -87,7 +87,6 @@ def get_model(
                     completion_tokens=usage_cb.completion_tokens,
                     cached_prompt_tokens=usage_cb.cached_prompt_tokens,
                 )
-                print(f"{budget=}")
                 if budget is not None and cost_usd is not None:
                     budget.add_or_raise(cost_usd)
 
