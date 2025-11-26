@@ -103,6 +103,7 @@ class PromptSearch:
                 prompt_node.query_refinement_map[query_node] = query_tree_node
         
             prompt_node.get_score(self.preference_score_map)
+        print("Prompt node budget: Spent:", self.budget.spent_usd, "remaining:", self.budget.remaining_usd)
         return tree_node
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):

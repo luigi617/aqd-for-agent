@@ -137,7 +137,7 @@ def evaluate_responses(
     evaluations = []
     reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3, budget=budget)
     for model_path in evaluation_model_paths:
-        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3, budget=budget)
+        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=5, budget=budget, timeout=300)
         
         # get violated criteria
         for _ in range(n_evaluation):
