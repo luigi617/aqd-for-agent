@@ -88,7 +88,13 @@ def get_model(
                     cached_prompt_tokens=usage_cb.cached_prompt_tokens,
                 )
                 if budget is not None and cost_usd is not None:
-                    budget.add_or_raise(cost_usd)
+                    budget.add_or_raise(
+                        delta_usd=cost_usd,
+                        cached_prompt_tokens=usage_cb.cached_prompt_tokens,
+                        prompt_tokens=usage_cb.prompt_tokens,
+                        completion_tokens=usage_cb.completion_tokens,
+                        model=model_name,
+                    )
 
                 return model_obj.model_dump()
                 

@@ -60,50 +60,46 @@ def main():
     budget = None
     if isinstance(args.budget, float) and args.budget >= 0:
         budget = Budget(limit_usd=args.budget)
-        
-    result = {}
 
-    for index, init_prompt in enumerate(args.initial_prompt_pool):
-        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
-        print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
-        try:
-            ps = PromptSearch(
-                prompt=init_prompt,
-                products=args.products,
-                n_queries=args.n_queries,
-                generate_model=args.generate_model,
-                refinement_model=args.refinement_model,
-                target_model=args.target_model,
-                filtering_model=args.filtering_model,
-                evaluation_models=args.evaluation_models,
-                preferred_definition=preferred_definition,
-                unpreferred_definition=unpreferred_definition,
-                preference_score_map=preference_score_map,
-                filtering_policy=args.filtering_policy,
-                query_refinement_strategies=args.query_refinement_strategies,
 
-                n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
-                n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,
-                n_query_refinemnet_iterations=args.n_query_refinemnet_iterations,
-                n_query_refiment_beam_search_size=args.n_query_refiment_beam_search_size,
-                n_thread_queries=args.n_thread_queries,
-                n_thread_query_refiment=args.n_thread_query_refiment,
-                
-                base_depth_output_path=save_iter_path,
-                budget=budget,
-            )
+    save_iter_path = args.output_path
+    print(f"PROMPT OPTIMIZATION: START")
+    try:
+        ps = PromptSearch(
+            prompt=args.initial_prompt,
+            products=args.products,
+            n_queries=args.n_queries,
+            generate_model=args.generate_model,
+            refinement_model=args.refinement_model,
+            target_model=args.target_model,
+            filtering_model=args.filtering_model,
+            evaluation_models=args.evaluation_models,
+            preferred_definition=preferred_definition,
+            unpreferred_definition=unpreferred_definition,
+            preference_score_map=preference_score_map,
+            filtering_policy=args.filtering_policy,
+            query_refinement_strategies=args.query_refinement_strategies,
 
-            prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
-            prompt_search_res_json = ps.result_to_json(prompt_search_res)
+            n_prompt_refinemnet_children=args.n_prompt_refinemnet_children,
+            n_prompt_refinemnet_beam_search_size=args.n_prompt_refinemnet_beam_search_size,
+            n_query_refinemnet_iterations=args.n_query_refinemnet_iterations,
+            n_query_refiment_beam_search_size=args.n_query_refiment_beam_search_size,
+            n_thread_queries=args.n_thread_queries,
+            n_thread_query_refiment=args.n_thread_query_refiment,
             
-            save_result(prompt_search_res_json, save_iter_path)
+            base_depth_output_path=save_iter_path,
+            budget=budget,
+        )
 
-            result[init_prompt] = prompt_search_res_json
-            print("Spent:", budget.spent_usd, "remaining:", budget.remaining_usd)
-        except Exception as e:
-            print("Pipeline stopped:", e)
+        prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
+        prompt_search_res_json = ps.result_to_json(prompt_search_res)
+        
+        save_result(prompt_search_res_json, save_iter_path)
 
-    save_result(result, args.output_path)
+        print("Spent:", budget.spent_usd, "remaining:", budget.remaining_usd)
+    except Exception as e:
+        print("Pipeline stopped:", e)
+
     print(f"PROMPT OPTIMIZATION: DONE")
 
 if __name__ == "__main__":
