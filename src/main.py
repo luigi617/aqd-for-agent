@@ -90,7 +90,8 @@ def main():
             base_depth_output_path=save_iter_path,
             budget=budget,
         )
-
+        if args.prev_result:
+            ps.load_prev_result(args.prev_result)
         prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
         prompt_search_res_json = ps.result_to_json(prompt_search_res)
         

@@ -40,7 +40,7 @@ class PromptSearch:
                  base_depth_output_path,
                  budget,
                  ):
-        self.root: PromptNode = PromptNode(prompt)
+        self.root: TreeNode = TreeNode(PromptNode(prompt))
         self.products: List[dict] = products
         self.n_queries: int = n_queries
 
@@ -106,10 +106,10 @@ class PromptSearch:
         print("Prompt node budget: Spent:", self.budget.spent_usd, "remaining:", self.budget.remaining_usd)
         return tree_node
     
-    def run(self, max_depth = 3, budget = None, n_workers = 5):
-        root_tree_node = TreeNode(self.root)
+    def run(self, max_depth = 3, n_workers = 5):
 
-        current_level = [root_tree_node]
+        
+        current_level = [self.root]
         depth = 0
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
@@ -134,10 +134,10 @@ class PromptSearch:
                             child = TreeNode(next_prompt_node, parent=ptn)
                             ptn.children.append(child)
                             next_level.append(child)
-                self.save_result(root_tree_node, depth)
+                self.save_result(self.root, depth)
                 depth += 1
                 current_level = next_level
-        return root_tree_node
+        return self.root
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
         queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, self.n_queries)
@@ -231,5 +231,65 @@ class PromptSearch:
             json.dump(result_json, f, indent=4)
         print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
+    def load_prev_result(self, result: list) -> "PromptSearch":
+        product_map = {product["product_name"]: product for product in self.products}
+        
+        def laod_prev_queries(query_result: list) -> TreeNode:
+            query_graph = defaultdict(list)
+            for query in query_result:
+                query_graph[query["parent_id"]].append(query)
+            init_query = [query for query in query_result if query["parent_id"] == None][0]
+            query_root = TreeNode(QueryNode("", {}, []))
+            stack = [(query_root, init_query)]
+            while stack:
+                query_tree_node, query_json = stack.pop()
+                query_node: QueryNode = query_tree_node.value
+                query_node.query_refinement_strategy = query_json["query_refinement_strategy"]
+                query_node.product = product_map[query_json["product"]]
+                query_node.attributes = query_json["attributes"]
+                query_node.query = query_json["query"]
+                query_node.is_filtered_out = query_json["is_filtered_out"]
+                query_node.filtering_reason = query_json["filtering_reason"]
+                query_node.response = query_json["response"]
+                query_node.individual_evaluations = query_json["individual_evaluations"]
+                query_node.evaluation = query_json["evaluation"]
+                query_node.evaluation_reason = query_json["evaluation_reason"]
+                query_node.score = query_json["score"]
+                query_node.set_is_unpreferred(query_json["evaluation"], self.unpreferred_definition)
+
+                for next_query in query_graph.get(query_json["id"], []):
+                    new_query_tree_node = TreeNode(QueryNode("", {}, []))
+                    query_tree_node.children.append(new_query_tree_node)
+                    stack.append((new_query_tree_node, next_query))
+            return query_root
+
+
+        prompt_graph = defaultdict(list)
+        for prompt in result:
+            prompt_graph[prompt["parent_id"]].append(prompt)
+        init_prompt = [prompt for prompt in result if prompt["parent_id"] == None][0]
+        self.root = TreeNode(PromptNode(""))
+        stack = [(self.root, init_prompt)]
+        while stack:
+            prompt_tree_node, prompt_json = stack.pop()
+            prompt_node: PromptNode = prompt_tree_node.value
+            prompt_node.prompt = prompt_json["prompt"]
+            prompt_node.improvement_reason = prompt_json["improvement_reason"]
+            prompt_node.query_filter_reason = prompt_json["query_filter_reason"]
+            prompt_node.query_filter_improvement_suggestions = prompt_json["query_filter_improvement_suggestions"]
+            prompt_node.unpreferred_response_reason = prompt_json["unpreferred_response_reason"]
+            prompt_node.unpreferred_response_improvement_suggestions = prompt_json["unpreferred_response_improvement_suggestions"]
+            prompt_node.score = prompt_json["score"]
+            for query_res in prompt_json["queries"]:
+                query_tree_node = laod_prev_queries(query_res)
+                prompt_node.queries.append(query_tree_node.value)
+                prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node
+
+            for next_prompt in prompt_graph.get(prompt_json["id"], []):
+                new_prompt_tree_node = TreeNode(PromptNode(""))
+                prompt_tree_node.children.append(new_prompt_tree_node)
+                stack.append((new_prompt_tree_node, next_prompt))
+
+        
     
     

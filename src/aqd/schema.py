@@ -18,6 +18,7 @@ class PromptNode:
 
         self.score: Optional[float] = None
 
+
     def to_dict(self) -> dict:
         return {
             "improvement_reason": self.improvement_reason,
@@ -105,6 +106,13 @@ class QueryNode:
         self.is_unpreferred: Optional[bool] = None
 
         self.score: Optional[float] = None
+
+    def set_is_unpreferred(self, criteria_chosen, unpreferred_definition) -> None:
+        is_unpreferred = False
+        for criterion, _ in criteria_chosen:
+            if criterion in unpreferred_definition:
+                is_unpreferred = True
+        self.is_unpreferred = is_unpreferred
 
     def get_score(self, preference_score_map: dict):
         if self.is_filtered_out:

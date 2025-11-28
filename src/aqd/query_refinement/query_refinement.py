@@ -27,7 +27,7 @@ class QueryRefinement:
                  n_query_refiment_beam_search_size,
                  budget,):
         
-        self.root: QueryNode = query_node
+        self.root: TreeNode = TreeNode(query_node)
 
         self.target_model = target_model
         self.filtering_model = filtering_model
@@ -70,9 +70,8 @@ class QueryRefinement:
             TAP algorithm
             https://arxiv.org/pdf/2312.02119
         """
-        root = TreeNode(self.root)
 
-        current_level = [root]
+        current_level = [self.root]
         depth = 0
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
@@ -99,7 +98,7 @@ class QueryRefinement:
                 depth += 1
                 current_level = next_level
         
-        return root
+        return self.root
             
         
     
@@ -124,11 +123,8 @@ class QueryRefinement:
                                                      self.budget,
                                                      self.preferred_definition,
                                                      self.unpreferred_definition)
-        query_node.is_unpreferred = False
-        for criterion, _ in criteria_chosen:
-            if criterion in self.unpreferred_definition:
-                query_node.is_unpreferred = True
-                break
+        
+        query_node.set_is_unpreferred(criteria_chosen, self.unpreferred_definition)
         query_node.evaluation = criteria_chosen
         query_node.evaluation_reason = reason
         query_node.individual_evaluations = individual_evals
