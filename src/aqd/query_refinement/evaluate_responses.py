@@ -3,8 +3,8 @@ from enum import Enum
 from typing import List, Tuple
 
 from pydantic import Field, BaseModel, field_validator
-from aqd.schema import QueryNode
-from models.model import get_model
+from src.aqd.schema import QueryNode
+from src.models.model import get_model
 
 EVAL_PROMPT = """
 You are an evaluator in a pipeline that assesses whether a given response satisfies a certain criteria relative to a query.

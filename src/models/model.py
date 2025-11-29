@@ -8,9 +8,9 @@ from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from langchain_core.exceptions import OutputParserException
-from models.deepseek import get_deepseek
-from models.ollama import get_ollama
-from models.gpt import get_openai
+from src.models.deepseek import get_deepseek
+from src.models.ollama import get_ollama
+from src.models.gpt import get_openai
 
 
 
