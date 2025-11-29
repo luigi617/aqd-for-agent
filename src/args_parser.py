@@ -19,7 +19,7 @@ class Argument:
     def __init__(self, args):
         self.seed = args.seed
 
-        self.initial_prompt_pool = json.load(args.input_pool.open())
+        self.initial_prompt = json.load(args.init_prompt.open())
     
         self.products = json.load(args.products.open())
 
@@ -52,15 +52,17 @@ class Argument:
         self.filtering_model = self.generate_model
         self.refinement_model = self.generate_model
 
+        self.budget = args.budget
+
         self.output_path = args.output_path
 
 def argument_parser():
  
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input_pool",
+        "--init_prompt",
         type=Path,
-        help="path to JSON specifying input prompt pool",
+        help="path to JSON specifying input prompt",
         required=True,
     )
     parser.add_argument(
@@ -165,6 +167,13 @@ def argument_parser():
         type=int,
         default=1,
         help="number of parallel worker threads for each LLM node",
+        required=False,
+    )
+    parser.add_argument(
+        "--budget",
+        type=float,
+        default=100,
+        help="budget to spent, if not set 100 usd",
         required=False,
     )
     parser.add_argument(

@@ -8,9 +8,14 @@ from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from langchain_core.exceptions import OutputParserException
+
+from src.aqd.budget import Budget
 from src.models.deepseek import get_deepseek
+from src.models.gemini import get_gemini
 from src.models.ollama import get_ollama
 from src.models.gpt import get_openai
+
+from src.models.costs import TokenUsageCallback, compute_cost_usd
 
 
 
@@ -32,6 +37,8 @@ def _get_base_llm(
         return get_deepseek(model_name, pydantic_model, temperature, timeout)
     elif "gpt" in model_name:
         return get_openai(model_name, pydantic_model, temperature, timeout)
+    elif "gemini" in model_name:
+        return get_gemini(model_name, pydantic_model, temperature, timeout)
 
     raise RuntimeError("LLM not available for the given model_name")
 
@@ -45,6 +52,7 @@ def get_model(
     max_delay: float = 30.0,
     timeout: int = 120,
     all_fail_raise: bool = True,
+    budget: Budget = None,
 ):
     """
     Builds a JSON-only chain and returns a simple function:
@@ -67,13 +75,35 @@ def get_model(
         attempt = 0
         while attempt < max_tries:
             try:
-                out = chain.invoke({"prompt": prompt_text})
+                usage_cb = TokenUsageCallback()
+                out = chain.invoke(
+                    {"prompt": prompt_text},
+                    config={"callbacks": [usage_cb]},
+                )
                 model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+
+                cost_usd = compute_cost_usd(
+                    model_name,
+                    prompt_tokens=usage_cb.prompt_tokens,
+                    completion_tokens=usage_cb.completion_tokens,
+                    cached_prompt_tokens=usage_cb.cached_prompt_tokens,
+                )
+                if budget is not None and cost_usd is not None:
+                    budget.add_or_raise(
+                        delta_usd=cost_usd,
+                        cached_prompt_tokens=usage_cb.cached_prompt_tokens,
+                        prompt_tokens=usage_cb.prompt_tokens,
+                        completion_tokens=usage_cb.completion_tokens,
+                        model=model_name,
+                    )
+
                 return model_obj.model_dump()
+                
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e
             except Exception as e:
                 last_exc = e
+            print("Error: ", last_exc)
             
             attempt += 1
             if not infinite and attempt >= max_tries:

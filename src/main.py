@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from dotenv import load_dotenv
+from aqd.budget import BudgetExceededError, Budget
 from args_parser import Argument, argument_parser
 from aqd.query_refinement.query_refinement import QueryRefinement
 from aqd.schema import QueryNode
@@ -56,12 +57,16 @@ def main():
         unpreferred_definition[criterion] = info["description"]
         preference_score_map[criterion] = info["score"]
 
-    result = {}
-    for index, init_prompt in enumerate(args.initial_prompt_pool):
-        save_iter_path = args.output_path.with_stem(args.output_path.stem + f'_seedprompt{index}')
-        print(f"PROMPT OPTIMIZATION FOR SEED PROMPT {index}: START")
+    budget = None
+    if isinstance(args.budget, float) and args.budget >= 0:
+        budget = Budget(limit_usd=args.budget)
+
+
+    save_iter_path = args.output_path
+    print(f"PROMPT OPTIMIZATION: START")
+    try:
         ps = PromptSearch(
-            prompt=init_prompt,
+            prompt=args.initial_prompt,
             products=args.products,
             n_queries=args.n_queries,
             generate_model=args.generate_model,
@@ -83,6 +88,7 @@ def main():
             n_thread_query_refiment=args.n_thread_query_refiment,
             
             base_depth_output_path=save_iter_path,
+            budget=budget,
         )
 
         prompt_search_res = ps.run(max_depth=args.n_prompt_refinemnet_iterations)
@@ -90,9 +96,10 @@ def main():
         
         save_result(prompt_search_res_json, save_iter_path)
 
-        result[init_prompt] = prompt_search_res_json
+        print("Spent:", budget.spent_usd, "remaining:", budget.remaining_usd)
+    except Exception as e:
+        print("Pipeline stopped:", e)
 
-    save_result(result, args.output_path)
     print(f"PROMPT OPTIMIZATION: DONE")
 
 if __name__ == "__main__":

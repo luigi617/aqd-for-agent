@@ -1,3 +1,4 @@
+import contextvars
 import random
 from collections import defaultdict, deque
 from tqdm import tqdm
@@ -23,7 +24,8 @@ class QueryRefinement:
                  preference_score_map,
                  filtering_policy,
                  query_refinement_strategies,
-                 n_query_refiment_beam_search_size):
+                 n_query_refiment_beam_search_size,
+                 budget,):
         
         self.root: QueryNode = query_node
 
@@ -39,6 +41,7 @@ class QueryRefinement:
         self.query_refinement_strategies = query_refinement_strategies
         
         self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
+        self.budget = budget
 
     def _process_node(self, tree_node):
         query_node = tree_node.value
@@ -103,13 +106,14 @@ class QueryRefinement:
     def filter_queries(self, query_node: QueryNode) -> QueryNode:
         satisfy_filter, reasoning = filter_queries(query_node,
                                                    self.filtering_model,
+                                                   self.budget,
                                                    self.filtering_policy)
         query_node.is_filtered_out = not satisfy_filter
         query_node.filtering_reason = reasoning
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.target_model)
+        response = generate_response(query_node, self.target_model, self.budget,)
         query_node.response = response
         return query_node
     
@@ -117,6 +121,7 @@ class QueryRefinement:
         criteria_chosen, reason, individual_evals = evaluate_responses(query_node,
                                                      self.evaluation_models,
                                                      self.refinement_model,
+                                                     self.budget,
                                                      self.preferred_definition,
                                                      self.unpreferred_definition)
         query_node.is_unpreferred = False
@@ -135,7 +140,12 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         query_node = tree_node.value
-        proposed_queries: List[Tuple[str, str]] = refine_query(tree_node, self.refinement_model, self.query_refinement_strategies)
+        proposed_queries: List[Tuple[str, str]] = refine_query(
+            tree_node,
+            self.refinement_model,
+            self.budget,
+            self.query_refinement_strategies
+        )
         next_query_nodes = []
         for query, strategy in proposed_queries:
             new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_refinement_strategy=strategy)
@@ -143,22 +153,29 @@ class QueryRefinement:
         return next_query_nodes
     
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
-        unfiltered = [n for n in query_tree_nodes if n.value.score is not None]
+        valid_nodes = [n for n in query_tree_nodes if n.value.score is not None]
 
         beam = self.n_query_refiment_beam_search_size
-        sorted_nodes = sorted(unfiltered, key=lambda node: node.value)
+        if len(valid_nodes) <= beam:
+            return valid_nodes
 
-        if len(sorted_nodes) <= beam:
-            return sorted_nodes
+        sorted_nodes = sorted(valid_nodes, key=lambda node: node.value.score)
 
-        truncated = sorted_nodes[:beam]
-        cutoff_value = truncated[-1].value
+        cutoff_score = sorted_nodes[beam - 1].value.score
 
-        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
-        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+        strictly_better = [n for n in sorted_nodes if n.value.score < cutoff_score]
+        tied_group = [n for n in sorted_nodes if n.value.score == cutoff_score]
 
         need = beam - len(strictly_better)
 
+        # Safety guards (cheap + avoids the ValueError)
+        if need <= 0:
+            return strictly_better[:beam]
+
+        if need >= len(tied_group):
+            # Take all ties, truncate if slightly over
+            return (strictly_better + tied_group)[:beam]
+    
         chosen_from_ties = random.sample(tied_group, need)
 
         return strictly_better + chosen_from_ties

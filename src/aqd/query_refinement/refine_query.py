@@ -2,6 +2,7 @@ from typing import List, Tuple
 from tqdm import tqdm
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from aqd.budget import Budget
 from models.model import get_model
 from aqd.schema import TreeNode
 
@@ -28,10 +29,11 @@ class QueryRefinementSchema(BaseModel):
 def refine_query(
         tree_node: TreeNode,
         model_path: str,
+        budget: Budget,
         query_refinement_strategies: list
     ) -> List[Tuple[str, str]]:
 
-    refine_query_chain = get_model(model_path, QueryRefinementSchema)
+    refine_query_chain = get_model(model_path, QueryRefinementSchema, budget=budget)
     
     query_node = tree_node.value
     query = query_node.query

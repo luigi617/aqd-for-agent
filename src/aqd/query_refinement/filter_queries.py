@@ -1,5 +1,6 @@
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
+from aqd.budget import Budget
 from aqd.schema import QueryNode
 from models.model import get_model
 
@@ -24,12 +25,13 @@ class FilteredQuerySchema(BaseModel):
 def filter_queries(
         query_node: QueryNode,
         model_path: str,
+        budget: Budget,
         filtering_policy: str,
     ) -> tuple[bool, str]:
     """
     Filters queries based on filtering policy definition.
     """
-    filter_query_chain = get_model(model_path, FilteredQuerySchema, retries=3)
+    filter_query_chain = get_model(model_path, FilteredQuerySchema, retries=3, budget=budget)
 
     query = query_node.query
     decision = filter_query_chain(

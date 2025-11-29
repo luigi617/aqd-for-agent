@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import contextvars
 from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -35,7 +36,10 @@ class PromptSearch:
                  n_query_refiment_beam_search_size,
                  n_thread_queries,
                  n_thread_query_refiment,
-                 base_depth_output_path):
+
+                 base_depth_output_path,
+                 budget,
+                 ):
         self.root: PromptNode = PromptNode(prompt)
         self.products: List[dict] = products
         self.n_queries: int = n_queries
@@ -60,6 +64,7 @@ class PromptSearch:
         self.n_thread_query_refiment = n_thread_query_refiment
 
         self.base_depth_output_path = base_depth_output_path
+        self.budget = budget
 
 
     def _run_single_query_refinement(self, query_node):
@@ -75,12 +80,14 @@ class PromptSearch:
             filtering_policy=self.filtering_policy,
             query_refinement_strategies=self.query_refinement_strategies,
             n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
+            budget=self.budget,
         )
         return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
                                                 n_workers=self.n_thread_query_refiment)
 
     def _process_node(self, tree_node):
         prompt_node: PromptNode = tree_node.value
+        
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
@@ -96,6 +103,7 @@ class PromptSearch:
                 prompt_node.query_refinement_map[query_node] = query_tree_node
         
             prompt_node.get_score(self.preference_score_map)
+        print("Prompt node budget: Spent:", self.budget.spent_usd, "remaining:", self.budget.remaining_usd)
         return tree_node
     
     def run(self, max_depth = 3, budget = None, n_workers = 5):
@@ -105,12 +113,10 @@ class PromptSearch:
         depth = 0
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
+            
             while current_level:
                 allow_refine = depth < max_depth
-                futures = [
-                    pool.submit(self._process_node, node)
-                    for node in current_level
-                ]
+                futures = [pool.submit(self._process_node, node) for node in current_level]
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
@@ -134,13 +140,13 @@ class PromptSearch:
         return root_tree_node
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
-        queries = generate_queries(prompt_node, self.generate_model, self.products, self.n_queries)
+        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, self.n_queries)
         for query, product, attribute in queries:
             prompt_node.queries.append(QueryNode(query, product, attribute))
         return prompt_node
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = query_filter_feedback(prompt_node, self.refinement_model, self.filtering_policy)
+        res = query_filter_feedback(prompt_node, self.refinement_model, self.budget, self.filtering_policy)
         reason, improvement_suggestions = res
 
         prompt_node.query_filter_reason = reason
@@ -149,7 +155,7 @@ class PromptSearch:
         return prompt_node
 
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.unpreferred_definition)
+        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.budget, self.unpreferred_definition)
         reason, improvement_suggestions = res
 
         prompt_node.unpreferred_response_reason = reason
@@ -161,6 +167,7 @@ class PromptSearch:
         new_promtps = refine_prompt(
             prompt_node,
             self.refinement_model,
+            self.budget,
             self.filtering_policy,
             self.preferred_definition,
             self.unpreferred_definition,
@@ -177,17 +184,22 @@ class PromptSearch:
     def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         beam = self.n_prompt_refinemnet_beam_search_size
 
-        sorted_nodes = sorted(prompt_tree_nodes, key=lambda node: node.value)
+        sorted_nodes = sorted(prompt_tree_nodes, key=lambda n: n.value.score)
 
         if len(sorted_nodes) <= beam:
             return sorted_nodes
-        truncated = sorted_nodes[:beam]
-        cutoff_value = truncated[-1].value
+        
+        cutoff_score = sorted_nodes[beam - 1].value.score
 
-        strictly_better = [n for n in sorted_nodes if n.value < cutoff_value]
-        tied_group = [n for n in sorted_nodes if n.value == cutoff_value]
+        strictly_better = [n for n in sorted_nodes if n.value.score < cutoff_score]
+        tied_group = [n for n in sorted_nodes if n.value.score == cutoff_score]
 
         need = beam - len(strictly_better)
+        if need <= 0:
+            return strictly_better[:beam]
+
+        if need >= len(tied_group):
+            return (strictly_better + tied_group)[:beam]
         chosen_from_ties = random.sample(tied_group, need)
 
         return strictly_better + chosen_from_ties

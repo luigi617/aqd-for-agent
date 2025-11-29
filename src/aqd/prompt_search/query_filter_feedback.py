@@ -1,6 +1,7 @@
 
 from typing import List, Tuple
 from pydantic import Field, BaseModel
+from aqd.budget import Budget
 from aqd.schema import PromptNode, QueryNode
 from models.model import get_model
 
@@ -57,10 +58,11 @@ def get_filtered_out_queries(query_nodes: List[QueryNode]):
 def query_filter_feedback(
     prompt_node: PromptNode,
     model_path: str,
+    budget: Budget,
     filtering_policy: str,
 ) -> Tuple[str, List[str], List[str]]:
     
-    query_filtering_chain = get_model(model_path, QueryFilterFeedbackSchema)
+    query_filtering_chain = get_model(model_path, QueryFilterFeedbackSchema, budget=budget)
     prompt = prompt_node.prompt
 
     filtered_out_queries = get_filtered_out_queries(prompt_node.queries)

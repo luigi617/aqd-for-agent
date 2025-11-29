@@ -1,6 +1,7 @@
 
 from typing import List, Tuple
 from pydantic import Field, BaseModel
+from aqd.budget import Budget
 from aqd.schema import PromptNode
 from models.model import get_model
 
@@ -79,13 +80,14 @@ def get_preference_definition_str(preference_definition: dict):
 def refine_prompt(
     prompt_node: PromptNode,
     model_path: str,
+    budget: Budget,
     filtering_policy: str,
     preferred_definition: dict,
     unpreferred_definition: dict,
     n_new_prompts: int = 3
 ) -> List[Tuple[str, str]]:
     
-    reflect_chain = get_model(model_path, ReflectResponseSchema)
+    reflect_chain = get_model(model_path, ReflectResponseSchema, budget=budget)
 
     prompt = prompt_node.prompt
 
