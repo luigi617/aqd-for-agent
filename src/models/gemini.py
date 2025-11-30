@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from models.common import get_seed
+from src.models.common import get_seed
 
 
 def get_gemini(

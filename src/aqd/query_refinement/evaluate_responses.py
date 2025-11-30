@@ -166,7 +166,7 @@ def evaluate_responses(
             category = preference_criterion_to_category_map[criterion]
             chosen_criteria.append((category, criterion))
     
-    all_reasoning = "\n".join([f"- {evaluation["reasoning"]}" for evaluation in evaluations])
+    all_reasoning = "\n".join([f"- {evaluation['reasoning']}" for evaluation in evaluations])
     final_selected_criteria_str = "\n".join([f"key = {preference_criteria_to_key_map[criterion]}, value = {criterion}" for _, criterion in chosen_criteria])
 
     reasoning = reason_merging_chain(
