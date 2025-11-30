@@ -16,6 +16,8 @@ import random
 import wandb
 from peft import LoraConfig
 
+from src.trainers.evaluator import EvaluatorConfig
+from src.trainers.trainer_kto import CustomizedKTOTrainer
 from src.trainers.arguments import ModelArguments, EvaluationArguments, DataArguments, KTOTrainingArguments, LoggerArguments
 from src.aqd.query_refinement.evaluate_responses import get_preference_criteria_map, get_preference_criteria_to_key_map, get_preference_criteria_str, get_majority
 from src.models.model import get_model
@@ -202,6 +204,15 @@ def main(training_args, data_args, model_args, eval_args, logger_args):
     eval_dataset = eval_raw.map(format_kto)
     test_dataset = test_raw.map(format_kto)
 
+    eval_config = EvaluatorConfig(
+        target_model=eval_args.target_model,
+        evaluation_models=eval_args.evaluation_models,
+        preferred_definition=eval_args.preferred_definition,
+        unpreferred_definition=eval_args.unpreferred_definition,
+        n_evaluation=eval_args.n_evaluation,
+        batch_size=training_args.per_device_eval_batch_size
+    )
+
     all_args = {
         'model_args': vars(model_args),
         'data_args': vars(data_args),
@@ -232,10 +243,12 @@ def main(training_args, data_args, model_args, eval_args, logger_args):
         num_samples=50 # Only evaluate 50 samples per epoch to save time
     )
 
-    trainer = KTOTrainer(
+    trainer = CustomizedKTOTrainer(
         model=model,
         ref_model=None, # None = create a copy of 'model' as reference automatically
-        args=training_args,
+        training_args=training_args,
+        data_args=data_args,
+        eval_config=eval_config,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         processing_class=tokenizer,
@@ -251,23 +264,21 @@ def main(training_args, data_args, model_args, eval_args, logger_args):
 
 if __name__ == "__main__":
     parser = HfArgumentParser(
-        dataclass_types=(ModelArguments, EvaluationArguments, DataArguments, KTOTrainingArguments, LoggerArguments),
+        dataclass_types=(ModelArguments, DataArguments, KTOTrainingArguments, LoggerArguments, EvaluationArguments),
         description="KTO evaluation training script"
     )
-    model_args, eval_args, data_args, training_args, logger_args = parser.parse_args_into_dataclasses()
+    model_args, data_args, training_args, logger_args, eval_args = parser.parse_args_into_dataclasses()
 
     print('received model_args:')
     print(json.dumps(vars(model_args), indent=2, sort_keys=True))
-    print('received eval_args:')
-    print(json.dumps(vars(eval_args), indent=2, sort_keys=True))
     print('received data_args:')
     print(json.dumps(vars(data_args), indent=2, sort_keys=True))
+    print('received eval_args:')
+    print(json.dumps(vars(eval_args), indent=2, sort_keys=True))
     # print('received training_args:')
-    # print(json.dumps(vars(training_args), indent=2, sort_keys=True))
+    # print(json.dumps(training_args.to_dict(), indent=2, sort_keys=True))
     print('received logger_args:')
     print(json.dumps(vars(logger_args), indent=2, sort_keys=True))
     print('--------------------------------')
-
-    breakpoint()
 
     main(training_args, data_args, model_args, eval_args, logger_args)

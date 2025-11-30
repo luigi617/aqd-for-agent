@@ -45,6 +45,10 @@ class DataArguments:
 
 @dataclass
 class EvaluationArguments:
+    target_model: str = field(
+        default="gpt-5-mini",
+        metadata={"help": "path to target model"},
+    )
     evaluation_models: List[str] = field(
         default_factory=lambda: ['gpt-5-mini', 'gemini-2.5-flash', 'deepseek-reasoner'],
         metadata={"help": "paths to evaluation (local/api) models"},
@@ -76,6 +80,14 @@ class KTOTrainingArguments(KTOConfig):
         default=True,
         metadata={"help": "Whether to run eval on the dev set."}
     )
+    eval_strategy: str = field(
+        default="steps",
+        metadata={"help": "Evaluation strategy: steps or epoch"},
+    )
+    eval_steps: int = field(
+        default=40,
+        metadata={"help": "Evaluation steps if eval_strategy is steps"},
+    )
     beta: float = field(
         default=0.1,
         metadata={"help": "beta for KTO"},
@@ -95,6 +107,10 @@ class KTOTrainingArguments(KTOConfig):
     per_device_train_batch_size: int = field(
         default=2,
         metadata={"help": "batch size for KTO"},
+    )
+    per_device_eval_batch_size: int = field(
+        default=2,
+        metadata={"help": "batch size for KTO evaluation"},
     )
     gradient_accumulation_steps: int = field(
         default=4,
