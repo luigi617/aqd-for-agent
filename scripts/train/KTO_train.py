@@ -24,141 +24,6 @@ from src.models.model import get_model
 from src.aqd.query_refinement.evaluate_responses import get_schema, EVAL_PROMPT
 
 
-class GenerativeJudgeCallback(TrainerCallback):
-    def __init__(self, eval_args, eval_dataset, tokenizer, num_samples=50):
-        self.eval_args = eval_args
-        self.eval_dataset = eval_dataset
-        self.tokenizer = tokenizer
-        self.num_samples = num_samples
-    
-    def evaluate_responses(
-        self,
-        query,
-        response,
-        preferred_definition,
-        unpreferred_definition,
-        preference_score_map,
-        evaluation_model_paths,
-        n_evaluation = 2,
-    ) -> float:
-        """
-        Evaluate response
-        """
-        preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
-        preference_criteria_to_key_map = get_preference_criteria_to_key_map(preference_criteria_map)
-        preference_criteria_str = get_preference_criteria_str(preference_criteria_map)
-        
-
-        evaluations = []
-        for model_path in evaluation_model_paths:
-            evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=3)
-            
-            # get violated criteria
-            for _ in range(n_evaluation):
-                evaluation = evaluate_response_chain(
-                    EVAL_PROMPT.format(
-                        query=query,
-                        response=response,
-                        criteria=preference_criteria_str,
-                    )
-                )
-                evaluations.append(evaluation)
-
-        criteria_count = collections.defaultdict(int)
-        for evaluation in evaluations:
-            for criterion in evaluation['criteria']:
-                criteria_count[criterion] += 1
-        preference_criterion_to_category_map = {}
-        for category, criteria in {**preferred_definition, **unpreferred_definition}.items():
-            for criterion in criteria:
-                preference_criterion_to_category_map[criterion] = category
-        
-        chosen_criteria = []
-        threshold = get_majority(len(evaluation_model_paths), n_evaluation)
-        for criterion, count in criteria_count.items():
-            if count >= threshold:
-                category = preference_criterion_to_category_map[criterion]
-                chosen_criteria.append((category, criterion))
-        
-        score = sum(preference_score_map[criterion] for criterion, _ in chosen_criteria) / len(chosen_criteria)
-        return score
-
-    def external_evaluator(self, query, response):
-        """
-        Returns a score: 0, 1, or 2
-        """
-        preferred_definition = {}
-        unpreferred_definition = {}
-        preference_score_map = {}
-        for criterion, info in self.eval_args.preferred_definition.items():
-            preferred_definition[criterion] = info["description"]
-            preference_score_map[criterion] = info["score"]
-
-        for criterion, info in self.eval_args.unpreferred_definition.items():
-            unpreferred_definition[criterion] = info["description"]
-            preference_score_map[criterion] = info["score"]
-
-        return self.evaluate_responses(query, response, preferred_definition, unpreferred_definition, preference_score_map, self.eval_args.evaluation_models, self.eval_args.n_evaluation)
-
-    def on_evaluate(self, args, state, control, model, **kwargs):
-        """
-        Event called after the standard evaluation phase.
-        We will hijack this to run our generation & scoring.
-        """
-        print("\n--- Running Generative Evaluation with External Judge ---")
-        
-        # 1. Select a random subset to save time
-        # We ensure we don't pick more than the dataset size
-        n = min(self.num_samples, len(self.eval_dataset))
-        indices = random.sample(range(len(self.eval_dataset)), n)
-        subset = self.eval_dataset.select(indices)
-        
-        scores = []
-        
-        # 2. Put model in eval mode
-        model.eval()
-        
-        # 3. Batched generation and decoding
-        batch_size = 2
-        for start in tqdm(range(0, len(subset), batch_size), desc="Generating & Scoring"):
-            end = min(start + batch_size, len(subset))
-            batch_examples = [subset[i] for i in range(start, end)]
-            batch_prompts = [ex["prompt"] for ex in batch_examples]
-            inputs = self.tokenizer(batch_prompts, return_tensors="pt", padding=True).to(model.device)
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=128,
-                    do_sample=False,
-                )
-                generated_ids = outputs[:, inputs.input_ids.shape[1]:]
-                batch_generated_texts = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
-                
-            # 4. Score with External Evaluator
-            for prompt_text, generated_text in zip(batch_prompts, batch_generated_texts):
-                score = self.external_evaluator(prompt_text, generated_text)
-                scores.append(score)
-
-        # 5. Calculate Average
-        avg_score = sum(scores) / len(scores)
-        print(f"\n>>> Average Generation Score: {avg_score:.4f} / 2.0\n")
-
-        # 6. Log to WandB / Tensorboard
-        # We access the existing _log function of the trainer from kwargs if available
-        # Or simpler: just append to the state's log history if you want straightforward logging
-        # Ideally, use: trainer.log({"eval_gen_score": avg_score}) inside the loop, 
-        # but inside a Callback, we can modify the logs indirectly or print them.
-        
-        # NOTE: To log properly to WandB from a callback:
-        if state.is_world_process_zero:
-             # This injects the metric into the trainer's logs
-             # (Requires you to pass 'trainer' to this callback or access it differently)
-             pass 
-
-        # Return model to train mode
-        model.train()
-
-
 def main(training_args, data_args, model_args, eval_args, logger_args):
     # 1. Setup Model & Tokenizer
     model_id = model_args.model_name_or_path
@@ -236,13 +101,6 @@ def main(training_args, data_args, model_args, eval_args, logger_args):
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     )
 
-    judge_callback = GenerativeJudgeCallback(
-        eval_args=eval_args,
-        eval_dataset=eval_dataset, 
-        tokenizer=tokenizer,
-        num_samples=50 # Only evaluate 50 samples per epoch to save time
-    )
-
     trainer = CustomizedKTOTrainer(
         model=model,
         ref_model=None, # None = create a copy of 'model' as reference automatically
@@ -252,7 +110,6 @@ def main(training_args, data_args, model_args, eval_args, logger_args):
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         processing_class=tokenizer,
-        callbacks=[judge_callback],
         peft_config=peft_config,
     )
 
