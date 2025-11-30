@@ -1,11 +1,15 @@
+# python -m scripts.local_strategies.personalization_test
+
 import json
-
-data = json.load(open('/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_data.json'))
-print(data[0])
-profiles = json.load(open('/local/data/shared/aqd/input_data/profiles.json'))
-print(profiles[0])
-
 from openai import OpenAI
+from src.aqd.schema import QueryNode
+from src.aqd.budget import Budget
+from src.aqd.query_refinement.query_refinement import QueryRefinement
+
+
+data = json.load(open('/local/data/shared/aqd/lucy/cleaned_data.json'))
+profiles = json.load(open('/local/data/shared/aqd/input_data/profiles.json'))
+
 client = OpenAI()
 prompt = """You are rewriting a user query to reflect a specific customer persona. 
 Original query: 
@@ -29,27 +33,11 @@ Answer:
 """
 
 sample_profile = profiles[13]
-new_profile = ""
-for sentence in sample_profile.split("."):
-    if "Sweet for Everyone" not in sentence:
-        new_profile += sentence + ". "
-
-print(new_profile)
 
 response = client.chat.completions.create(
     model="gpt-5-mini",
-    messages=[{"role": "user", "content": prompt.format(question=data[0]["query"], profile=new_profile)}],
+    messages=[{"role": "user", "content": prompt.format(question=data[0]["query"], profile=sample_profile)}],
 )
-
-print(response.choices[0].message.content)
-
-
-
-# generate the response and evaluate the response
-from src.aqd.schema import QueryNode
-from src.aqd.budget import Budget
-from src.aqd.query_refinement.query_refinement import QueryRefinement
-
 
 target_model = "qwen3:8b"
 evaluation_models = ['gpt-5-mini', 'gemini-2.5-flash', 'deepseek-reasoner']
@@ -89,7 +77,7 @@ query_refinement = QueryRefinement(
 )
 query_node = query_refinement.generate_response(query_node)
 query_node = query_refinement.evaluate_responses(query_node)
-query_node.get_score(preference_score_map)
+score = query_node.get_score(preference_score_map)
 
 # save query node to json
-json.dump(query_node.to_dict(), open('output_data/gpt5-mini_1126/query_node.json', 'w'))
+json.dump(query_node.to_dict(), open('output_data/gpt5-mini_1126/query_node.json', 'w'), indent=4)
