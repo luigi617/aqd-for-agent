@@ -55,7 +55,6 @@ class QueryRefinement:
             query_node = self.filter_queries(query_node)
             pbar.update(1)
             if query_node.is_filtered_out:
-                tree_node.value = query_node  # keep the filtered state
                 return tree_node, []
 
             query_node = self.generate_response(query_node)
@@ -65,8 +64,6 @@ class QueryRefinement:
             query_node = self.modify_responses(query_node)
             pbar.update(1)
             query_node.get_score(self.preference_score_map)
-
-            tree_node.value = query_node
 
         return tree_node
 

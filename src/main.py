@@ -102,6 +102,9 @@ def main():
         print("Spent:", budget.spent_usd, "remaining:", budget.remaining_usd)
     except Exception as e:
         print("Pipeline stopped:", e)
+        prompt_search_res_json = ps.result_to_json(ps.root)
+        error_save_path = save_iter_path.with_name("stopped_result.json")
+        save_result(prompt_search_res_json, error_save_path)
 
     print(f"PROMPT OPTIMIZATION: DONE")
 

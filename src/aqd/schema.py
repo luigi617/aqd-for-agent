@@ -30,7 +30,7 @@ class PromptNode:
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": str(self.score)
+            "score": self.score
         }
     
     @property
@@ -157,7 +157,7 @@ class QueryNode:
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
-            "score": str(self.score),
+            "score": self.score,
         }
 
 

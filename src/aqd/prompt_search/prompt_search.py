@@ -133,7 +133,6 @@ class PromptSearch:
                         prompt_node = ptn.value
                         prompt_node = self.get_query_filter_feedback(prompt_node)
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
-                        ptn.value = prompt_node
 
                         next_level.extend(ptn.children)
                         n_prompt_refinement = max(self.n_prompt_refinemnet_children - len(ptn.children), 0)
