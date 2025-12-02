@@ -61,6 +61,8 @@ def query_filter_feedback(
     budget: Budget,
     filtering_policy: str,
 ) -> Tuple[str, List[str], List[str]]:
+    if prompt_node.query_filter_reason != "" and prompt_node.query_filter_improvement_suggestions != "":
+        return prompt_node.query_filter_reason, prompt_node.query_filter_improvement_suggestions
     
     query_filtering_chain = get_model(model_path, QueryFilterFeedbackSchema, budget=budget)
     prompt = prompt_node.prompt

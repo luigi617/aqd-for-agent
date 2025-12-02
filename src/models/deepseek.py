@@ -27,9 +27,21 @@ def get_deepseek(
         seed=SEED,
     )
      
-    llm_structured = base_llm.with_structured_output(pydantic_model)
-    base_prompt = ChatPromptTemplate.from_messages([("user", "{prompt}")])
-    chain = base_prompt | llm_structured
+    # deepseek-reasoner does not support this
+    # llm_structured = base_llm.with_structured_output(pydantic_model)
+    # base_prompt = ChatPromptTemplate.from_messages([("user", "{prompt}")])
+    # chain = base_prompt | llm_structured
+
+    parser = JsonOutputParser(pydantic_object=pydantic_model)
+    SYSTEM_RULES = (
+        "Return exactly one valid JSON object conforming to the schema below. "
+        "No extra text, no code fences. Use null for unknowns.\n"
+        "{format_instructions}"
+    )
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", SYSTEM_RULES), ("user", "{prompt}")]
+    ).partial(format_instructions=parser.get_format_instructions())
+    chain = prompt | base_llm | parser
 
     if chain is None:
         raise RuntimeError("LLM not available for the given model_name")

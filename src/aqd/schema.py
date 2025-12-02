@@ -33,6 +33,13 @@ class PromptNode:
             "score": str(self.score)
         }
     
+    @property
+    def is_selected(self):
+        return self.query_filter_reason != "" or \
+            self.query_filter_reason != "" or \
+                self.query_filter_reason != "" or \
+                self.query_filter_reason != ""
+    
     def query_to_json(self, query_tree_node: "TreeNode"):
         if not query_tree_node: return []
         res = []

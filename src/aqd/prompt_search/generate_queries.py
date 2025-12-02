@@ -67,6 +67,7 @@ def generate_queries(
     query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
     
     prompt = prompt_node.prompt
+    
     generated_queries = []
     for _ in range(n_queries):
         

@@ -67,9 +67,11 @@ class PromptSearch:
         self.budget = budget
 
 
-    def _run_single_query_refinement(self, query_node):
+
+    def _run_single_query_refinement(self, query_node, query_tree_node):
         query_refinement = QueryRefinement(
             query_node=query_node,
+            query_tree_node=query_tree_node,
             target_model=self.target_model,
             filtering_model=self.filtering_model,
             refinement_model=self.refinement_model,
@@ -94,7 +96,10 @@ class PromptSearch:
             max_workers = min(self.n_thread_queries, len(prompt_node.queries))
             results = []
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
-                futures = [inner_pool.submit(self._run_single_query_refinement, q) for q in prompt_node.queries]
+                futures = [
+                    inner_pool.submit(self._run_single_query_refinement, q, prompt_node.query_refinement_map.get(q))
+                    for q in prompt_node.queries
+                ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
                     query_node, query_tree_node = fut.result()
                     results.append((query_node, query_tree_node))
@@ -129,7 +134,10 @@ class PromptSearch:
                         prompt_node = self.get_query_filter_feedback(prompt_node)
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
                         ptn.value = prompt_node
-                        next_prompts = self.refine_prompt(prompt_node)
+
+                        next_level.extend(ptn.children)
+                        n_prompt_refinement = max(self.n_prompt_refinemnet_children - len(ptn.children), 0)
+                        next_prompts = self.refine_prompt(prompt_node, n_prompt_refinement)
                         for next_prompt_node in next_prompts:
                             child = TreeNode(next_prompt_node, parent=ptn)
                             ptn.children.append(child)
@@ -140,7 +148,8 @@ class PromptSearch:
         return self.root
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
-        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, self.n_queries)
+        n_to_be_generated_queries = max(self.n_queries - len(prompt_node.queries), 0)
+        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, n_to_be_generated_queries)
         for query, product, attribute in queries:
             prompt_node.queries.append(QueryNode(query, product, attribute))
         return prompt_node
@@ -163,7 +172,7 @@ class PromptSearch:
 
         return prompt_node
 
-    def refine_prompt(self, prompt_node: PromptNode) -> List[PromptNode]:
+    def refine_prompt(self, prompt_node: PromptNode, n_prompt_refinement: int) -> List[PromptNode]:
         new_promtps = refine_prompt(
             prompt_node,
             self.refinement_model,
@@ -171,7 +180,7 @@ class PromptSearch:
             self.filtering_policy,
             self.preferred_definition,
             self.unpreferred_definition,
-            self.n_prompt_refinemnet_children
+            n_prompt_refinement
         )
         
         next_prompt_nodes = []
@@ -182,12 +191,20 @@ class PromptSearch:
         return next_prompt_nodes
     
     def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if ptn.value.is_selected]
+        not_selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if not ptn.value.is_selected]
+
         beam = self.n_prompt_refinemnet_beam_search_size
 
-        sorted_nodes = sorted(prompt_tree_nodes, key=lambda n: n.value.score)
+        if len(selected_tree_nodes) >= beam:
+            return selected_tree_nodes
+        
+        beam = beam - len(selected_tree_nodes)
 
         if len(sorted_nodes) <= beam:
-            return sorted_nodes
+            return selected_tree_nodes + not_selected_tree_nodes
+        
+        sorted_nodes = sorted(not_selected_tree_nodes, key=lambda n: n.value.score)
         
         cutoff_score = sorted_nodes[beam - 1].value.score
 
@@ -195,36 +212,36 @@ class PromptSearch:
         tied_group = [n for n in sorted_nodes if n.value.score == cutoff_score]
 
         need = beam - len(strictly_better)
-        if need <= 0:
-            return strictly_better[:beam]
 
         if need >= len(tied_group):
-            return (strictly_better + tied_group)[:beam]
+            return selected_tree_nodes + (strictly_better + tied_group)[:beam]
         chosen_from_ties = random.sample(tied_group, need)
 
-        return strictly_better + chosen_from_ties
+        return selected_tree_nodes + strictly_better + chosen_from_ties
 
 
-    def result_to_json(self, result: TreeNode):
+    def result_to_json(self, result: TreeNode, max_depth = 10**9+7):
         root = result
         if not root: return []
         res = []
         node_id = 0
-        queue = deque([(root, None)])
+        queue = deque([(root, None, 0)])
         while queue:
-            cur_prompt_tree_node, parent_id = queue.popleft()
+            cur_prompt_tree_node, parent_id, depth = queue.popleft()
+            if depth > max_depth: continue
             prompt_node: PromptNode = cur_prompt_tree_node.value
             prompt_row = {**{"id": node_id, "parent_id": parent_id}, **prompt_node.to_dict()}
             res.append(prompt_row)
 
             for next_prompt_tree_node in cur_prompt_tree_node.children:
-                queue.append((next_prompt_tree_node, node_id))
+                queue.append((next_prompt_tree_node, node_id, depth + 1))
 
             node_id += 1
+        
         return res
     
     def save_result(self, result: TreeNode, depth):
-        result_json = self.result_to_json(result)
+        result_json = self.result_to_json(result, depth)
         save_depth_path = self.base_depth_output_path.with_stem(self.base_depth_output_path.stem + f'_depth{depth}')
         os.makedirs(save_depth_path.parent, exist_ok=True)
         with open(save_depth_path, 'w') as f:
@@ -291,5 +308,4 @@ class PromptSearch:
                 stack.append((new_prompt_tree_node, next_prompt))
 
         
-    
     

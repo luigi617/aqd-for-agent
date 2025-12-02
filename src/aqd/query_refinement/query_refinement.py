@@ -16,9 +16,12 @@ from aqd.query_refinement.refine_query import refine_query
 
 class QueryRefinement:
     
-    def __init__(self, query_node, target_model,
+    def __init__(self, query_node,
+                 query_tree_node,
+                 target_model,
                  filtering_model,
-                 refinement_model, evaluation_models,
+                 refinement_model,
+                 evaluation_models,
                  preferred_definition,
                  unpreferred_definition,
                  preference_score_map,
@@ -26,8 +29,10 @@ class QueryRefinement:
                  query_refinement_strategies,
                  n_query_refiment_beam_search_size,
                  budget,):
-        
-        self.root: TreeNode = TreeNode(query_node)
+        if isinstance(query_tree_node, TreeNode):
+            self.root: TreeNode = query_tree_node
+        else:
+            self.root: TreeNode = TreeNode(query_node)
 
         self.target_model = target_model
         self.filtering_model = filtering_model
@@ -112,7 +117,7 @@ class QueryRefinement:
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.target_model, self.budget,)
+        response = generate_response(query_node, self.target_model, self.budget)
         query_node.response = response
         return query_node
     
@@ -135,12 +140,14 @@ class QueryRefinement:
         return query_node
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
+        strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
+        strategy_to_be_used = list(set(self.query_refinement_strategies) - set(strategy_used))
         query_node = tree_node.value
         proposed_queries: List[Tuple[str, str]] = refine_query(
             tree_node,
             self.refinement_model,
             self.budget,
-            self.query_refinement_strategies
+            strategy_to_be_used
         )
         next_query_nodes = []
         for query, strategy in proposed_queries:
@@ -150,12 +157,20 @@ class QueryRefinement:
     
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         valid_nodes = [n for n in query_tree_nodes if n.value.score is not None]
+        selected_tree_nodes = [n for n in valid_nodes if n.children]
+        not_selected_tree_nodes = [n for n in valid_nodes if not n.children]
 
         beam = self.n_query_refiment_beam_search_size
-        if len(valid_nodes) <= beam:
-            return valid_nodes
 
-        sorted_nodes = sorted(valid_nodes, key=lambda node: node.value.score)
+        if len(selected_tree_nodes) >= beam:
+            return selected_tree_nodes
+        
+        beam = beam - len(selected_tree_nodes)
+
+        if len(not_selected_tree_nodes) <= beam:
+            return selected_tree_nodes + not_selected_tree_nodes
+
+        sorted_nodes = sorted(not_selected_tree_nodes, key=lambda node: node.value.score)
 
         cutoff_score = sorted_nodes[beam - 1].value.score
 
@@ -164,16 +179,12 @@ class QueryRefinement:
 
         need = beam - len(strictly_better)
 
-        # Safety guards (cheap + avoids the ValueError)
-        if need <= 0:
-            return strictly_better[:beam]
-
         if need >= len(tied_group):
             # Take all ties, truncate if slightly over
-            return (strictly_better + tied_group)[:beam]
+            return selected_tree_nodes + (strictly_better + tied_group)[:beam]
     
         chosen_from_ties = random.sample(tied_group, need)
 
-        return strictly_better + chosen_from_ties
+        return selected_tree_nodes + strictly_better + chosen_from_ties
     
 

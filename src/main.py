@@ -42,6 +42,8 @@ def main():
 
     # Parse arguments
     args: Argument = argument_parser()
+    config_path = args.output_path.with_name("config.json")
+    save_result(args.config, config_path)
 
     if args.seed is not None:
         set_seed(args.seed)
