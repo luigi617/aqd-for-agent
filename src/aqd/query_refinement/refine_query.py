@@ -2,9 +2,9 @@ from typing import List, Tuple
 from tqdm import tqdm
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
-from aqd.budget import Budget
-from models.model import get_model
-from aqd.schema import TreeNode
+from src.aqd.budget import Budget
+from src.models.model import get_model
+from src.aqd.schema import TreeNode
 
 # Stretegy instructions taken from https://arxiv.org/pdf/2310.13345
 

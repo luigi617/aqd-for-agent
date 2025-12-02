@@ -32,7 +32,9 @@ dependencies = [
     "trl",
     "bitsandbytes",
     "huggingface_hub",
-    "wandb"
+    "wandb",
+    "lexical-diversity",
+    "nltk"
 ]
 
 [tool.setuptools.packages.find]

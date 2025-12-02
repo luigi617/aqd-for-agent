@@ -5,11 +5,11 @@ from tqdm import tqdm
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from aqd.query_refinement.filter_queries import filter_queries
-from aqd.query_refinement.generate_response import generate_response
-from aqd.query_refinement.evaluate_responses import evaluate_responses
-from aqd.schema import QueryNode, TreeNode
-from aqd.query_refinement.refine_query import refine_query
+from src.aqd.query_refinement.filter_queries import filter_queries
+from src.aqd.query_refinement.generate_response import generate_response
+from src.aqd.query_refinement.evaluate_responses import evaluate_responses
+from src.aqd.schema import QueryNode, TreeNode
+from src.aqd.query_refinement.refine_query import refine_query
 
 
 

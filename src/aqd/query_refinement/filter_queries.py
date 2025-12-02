@@ -1,8 +1,8 @@
 from pydantic import Field, BaseModel
 from pydantic import BaseModel
-from aqd.budget import Budget
-from aqd.schema import QueryNode
-from models.model import get_model
+from src.aqd.budget import Budget
+from src.aqd.schema import QueryNode
+from src.models.model import get_model
 
 
 FILTER_QUERY_PROMPT = """\

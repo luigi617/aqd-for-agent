@@ -26,7 +26,7 @@ python3 src/main.py resume \
 #     --seed 617 \
     
 
-# python3 src/main.py \
+# python3 src/main.py run \
 #     --generate_model 'gpt-5-mini' \
 #     --target_model 'qwen3:8b' \
 #     --evaluation_models 'gpt-5-mini' 'gemini-2.5-flash' 'deepseek-reasoner' \
@@ -46,5 +46,6 @@ python3 src/main.py resume \
 #     --n_threads 50 \
 #     --budget 1000 \
 #     --seed 617 \
+
     
 
