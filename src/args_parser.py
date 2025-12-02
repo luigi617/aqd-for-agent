@@ -308,30 +308,6 @@ def argument_parser() -> Argument:
         required=True,
     )
 
-    # ---- expand ----
-    expand_parser = subparsers.add_parser(
-        "expand", help="expand using previous result but allow different config"
-    )
-    expand_parser.add_argument(
-        "--prev_result",
-        type=Path,
-        help="path to the previous result to expand from",
-        required=True,
-    )
-    expand_parser.add_argument(
-        "--n_prompt_refinemnet_iterations",
-        type=int,
-        default=3,
-        help="new number of iterations of prompt optimization",
-        required=False,
-    )
-    expand_parser.add_argument(
-        "--output_path",
-        type=Path,
-        help="path to JSON to output results",
-        required=True,
-    )
-
     args = parser.parse_args()
 
     # Example validation: forbid prev_result on 'run' if you want

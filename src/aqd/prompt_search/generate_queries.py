@@ -3,9 +3,9 @@ from tqdm import tqdm
 from pydantic import Field, BaseModel
 from random import randint, choice
 
-from aqd.budget import Budget
-from models.model import get_model
-from aqd.schema import PromptNode
+from src.aqd.budget import Budget
+from src.models.model import get_model
+from src.aqd.schema import PromptNode
 
 QUERY_GENERATION_PROMPT = """
 {template}

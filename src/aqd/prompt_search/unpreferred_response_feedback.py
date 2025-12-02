@@ -1,9 +1,9 @@
 
 from typing import List, Tuple
 from pydantic import Field, BaseModel
-from aqd.budget import Budget
-from aqd.schema import PromptNode, QueryNode
-from models.model import get_model
+from src.aqd.budget import Budget
+from src.aqd.schema import PromptNode, QueryNode
+from src.models.model import get_model
 
 
 

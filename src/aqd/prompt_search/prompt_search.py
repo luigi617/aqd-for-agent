@@ -200,7 +200,7 @@ class PromptSearch:
         
         beam = beam - len(selected_tree_nodes)
 
-        if len(sorted_nodes) <= beam:
+        if len(not_selected_tree_nodes) <= beam:
             return selected_tree_nodes + not_selected_tree_nodes
         
         sorted_nodes = sorted(not_selected_tree_nodes, key=lambda n: n.value.score)
