@@ -1,3 +1,4 @@
+import os
 import json
 import numpy as np
 import copy
@@ -16,7 +17,7 @@ def edit_ratio(a, b):
     return dist / avg_len if avg_len > 0 else 0
 
 
-def group_strings(formatted_data_items, threshold=0.2):
+def group_strings(filtered_data_items, threshold=0.2):
     """
     Group responses by normalized edit distance threshold.
     Within each group, the first encountered ID is used as the representative.
@@ -27,7 +28,7 @@ def group_strings(formatted_data_items, threshold=0.2):
     groups = []
     used = set()
 
-    for i, s in enumerate(formatted_data_items["queries"]):
+    for i, s in enumerate(filtered_data_items["queries"]):
         if i in used:
             continue
 
@@ -36,10 +37,10 @@ def group_strings(formatted_data_items, threshold=0.2):
         group = [current_id]
         used.add(i)
 
-        for j in range(i + 1, len(formatted_data_items["queries"])):  # compare with subsequent items
+        for j in range(i + 1, len(filtered_data_items["queries"])):  # compare with subsequent items
             if j in used:
                 continue
-            compared_item = formatted_data_items["queries"][j]
+            compared_item = filtered_data_items["queries"][j]
             response_content = compared_item.get("response", "") or ""
             response_id = compared_item["id"]
 
@@ -59,7 +60,7 @@ def group_strings(formatted_data_items, threshold=0.2):
 
 
 def reformat(clean_dataset, products_filepath):
-    """re-format the clean dataset
+    """add product attributes and selected attributes to the clean dataset
 
     Args:
         clean_dataset (list): The clean dataset
@@ -76,6 +77,7 @@ def reformat(clean_dataset, products_filepath):
     for idx, item in enumerate(clean_dataset):
         new_item = {}
         new_item["id"] = idx
+        new_item["global_id"] = item["global_id"]
         new_item["query"] = item["query"]
         new_item["response"] = item["response"]
         new_item["score"] = item["score"]
@@ -88,20 +90,20 @@ def reformat(clean_dataset, products_filepath):
         
     return final_dataset
 
-def aggregate_data(formatted_data, eval_robustness, products_filepath):
-    """filter out the similar responses and aggregate the data by the group scores
+def aggregate_data(filtered_data, eval_robustness, products_filepath):
+    """filter out the similar responses and update the score with the average score of the group
 
     Args:
-        formatted_data (dict): The formatted data with the raw queries grouped by the cluster ids
+        filtered_data (dict): The formatted data with the raw queries grouped by the cluster ids
         eval_robustness (dict): The eval robustness data with the group scores
 
     Returns:
-        list: The filtered and aggregated data
+        list: The filtered and updated data
     """
-    clean_dataset = []
+    tmp_dataset = []
 
     for key, value in eval_robustness.items():
-        queries_group = formatted_data[key]
+        queries_group = filtered_data[key]
         value_l = value["l"]
         group_scores = []
         for reduced_id, group_ids in value_l.items():
@@ -117,20 +119,20 @@ def aggregate_data(formatted_data, eval_robustness, products_filepath):
                         if item["score"] != "None":
                             group_scores.append(float(item["score"]))
                 avg_score = np.mean(group_scores)
-                picked_item["score"] = avg_score
-                clean_dataset.append(picked_item)
+                # picked_item["score"] = avg_score
+                picked_item["global_id"] = key
+                tmp_dataset.append(picked_item)
 
-    # re-format the clean dataset
-    final_dataset = reformat(clean_dataset, products_filepath)
-    return final_dataset, clean_dataset
+    # re-format the data with needed fields
+    final_dataset = reformat(tmp_dataset, products_filepath)
+    return final_dataset
 
 
-def calculate_statistics(clean_dataset, formatted_data):
-    """calculate the statistics of the clean dataset
+def calculate_statistics(filtered_data):
+    """calculate the statistics of the filtered dataset
 
     Args:
-        clean_dataset (list): The clean dataset
-        formatted_data (dict): The formatted data with the raw queries grouped by the cluster ids
+        filtered_data (dict): The formatted data with the raw queries grouped by the cluster ids
     """
     total_query_count = 0
     filtered_query_count = 0
@@ -140,7 +142,7 @@ def calculate_statistics(clean_dataset, formatted_data):
     low_filtered_query_percentage_group_scores = []
     high_filtered_query_percentage_products = []
     low_filtered_query_percentage_products = []
-    for group_id, group_data in formatted_data.items():
+    for group_id, group_data in filtered_data.items():
         score_g = group_data["score"]
         current_filtered_query_count = 0
         for query_data in group_data["queries"]:
@@ -165,7 +167,7 @@ def calculate_statistics(clean_dataset, formatted_data):
     score_drop = []
     score_drop_high = []
     score_drop_low = []
-    for group_id, group_data in formatted_data.items():
+    for group_id, group_data in filtered_data.items():
         score_g = float(group_data["score"])
         if score_g == 0:
             score_g = 0.1
@@ -184,7 +186,7 @@ def calculate_statistics(clean_dataset, formatted_data):
 
     print("="*100)
     print("Calculate the statistics of the dataset")
-    print(f"total_query_count: {total_query_count}, filtered_query_count: {filtered_query_count}, final dataset count: {len(clean_dataset)}")
+    print(f"total_query_count: {total_query_count}, filtered_query_count: {filtered_query_count}, final dataset count: {total_query_count-filtered_query_count}")
 
     print("="*100)
     print("Calculate the statistics of the filtered query percentage per group, where filtered ")
@@ -205,18 +207,18 @@ def calculate_statistics(clean_dataset, formatted_data):
     print("="*100)
 
 
-def eval_score_robustness(clean_dataset, eval_robustness):
-    """evaluate the score robustness of the clean dataset
+def eval_score_robustness(filtered_data, eval_robustness):
+    """evaluate the score robustness of the filtered dataset
 
     Args:
-        clean_dataset (list): The clean dataset
+        filtered_data (dict): The filtered data
         eval_robustness (dict): The eval robustness data
     """
 
     p_values = []
 
     for key, value in eval_robustness.items():
-        queries_group = formatted_data[key]
+        queries_group = filtered_data[key]
         value_l = value["l"]
         group_scores = []
         for reduced_id, group_ids in value_l.items():
@@ -265,7 +267,7 @@ def main(args):
         raw_data = json.load(f)
 
     # 2. Remove the data with the similar responses
-    formatted_data = {}  # {node_id}_{index}: {query: {query_g}, response: {response_g}, score: {}, queries: []}
+    filtered_data = {}  # {node_id}_{index}: {query: {query_g}, response: {response_g}, score: {}, queries: []}
     response_edit_distances = {}  # {node_id}_{index}: [response_edit_distance]
     eval_robustness = {}  # {node_id}_{index}: {"g": score, "l": {"{reduced_id}": [group_ids], ...}}
     groups_response = {}
@@ -274,8 +276,8 @@ def main(args):
         node_id = node["id"]
         queries = node["queries"]
         for idx, query_group in enumerate(queries):
-            formatted_data[f"{node_id}_{idx}"] = {}
-            formatted_data[f"{node_id}_{idx}"]["queries"] = []
+            filtered_data[f"{node_id}_{idx}"] = {}
+            filtered_data[f"{node_id}_{idx}"]["queries"] = []
             response_edit_distances[f"{node_id}_{idx}"] = []
             eval_robustness[f"{node_id}_{idx}"] = {"g": "", "l": {}}
             for id, query in enumerate(query_group):
@@ -286,53 +288,56 @@ def main(args):
                     score_g = query["score"]
                     eval_robustness[f"{node_id}_{idx}"]["g"] = score_g
 
-                    formatted_data[f"{node_id}_{idx}"]["query"] = query_g_content
-                    formatted_data[f"{node_id}_{idx}"]["response"] = response_g
-                    formatted_data[f"{node_id}_{idx}"]["score"] = score_g
+                    filtered_data[f"{node_id}_{idx}"]["query"] = query_g_content
+                    filtered_data[f"{node_id}_{idx}"]["response"] = response_g
+                    filtered_data[f"{node_id}_{idx}"]["score"] = score_g
 
-                formatted_data[f"{node_id}_{idx}"]["queries"].append(query)
+                filtered_data[f"{node_id}_{idx}"]["queries"].append(query)
 
-            groups, reduced = group_strings(formatted_data[f"{node_id}_{idx}"], args.filter_out_threshold)
+            groups, reduced = group_strings(filtered_data[f"{node_id}_{idx}"], args.filter_out_threshold)
             for reduced_id, group_ids in zip(reduced, groups):
                 eval_robustness[f"{node_id}_{idx}"]["l"][reduced_id] = group_ids
                 groups_response[f"{node_id}_{idx}_{reduced_id}"] = []
                 if reduced_id == 0:
                     groups_response[f"{node_id}_{idx}_{reduced_id}"].append(response_g)
-                for query in formatted_data[f"{node_id}_{idx}"]["queries"]:
+                for query in filtered_data[f"{node_id}_{idx}"]["queries"]:
                     if query["id"] in group_ids:
                         groups_response[f"{node_id}_{idx}_{reduced_id}"].append(query["response"])
                 
-            for query in formatted_data[f"{node_id}_{idx}"]["queries"]:
+            for query in filtered_data[f"{node_id}_{idx}"]["queries"]:
                 if query["id"] in reduced:
                     query["response_is_similar"] = False
                 else:
                     query["response_is_similar"] = True
 
-    final_dataset, clean_dataset = aggregate_data(formatted_data, eval_robustness, args.products_filepath)
+    final_dataset = aggregate_data(filtered_data, eval_robustness, args.products_filepath)
 
-    return final_dataset, formatted_data, eval_robustness, clean_dataset
+    return final_dataset, filtered_data, eval_robustness
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_file", type=str, default="/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/results_seedprompt0.json", help="path to the input file")
-    parser.add_argument("--output_file", type=str, default="/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_data.json", help="path to the output file")
+    parser.add_argument("--output_dir", type=str, default="/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_dataset", help="path to the output directory")
     parser.add_argument("--filter_out_threshold", type=float, default=0.2, help="threshold for filtering out similar responses")
     parser.add_argument("--products_filepath", type=str, default="/local/data/shared/aqd/input_data/walmart_products.json", help="path to the products file")
     args = parser.parse_args()
 
-    final_dataset, formatted_data, eval_robustness, clean_dataset = main(args)
-    with open(args.output_file, "w") as f:
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    final_dataset, filtered_data, eval_robustness = main(args)
+    with open(os.path.join(args.output_dir, "cleaned_dataset.json"), "w") as f:
         json.dump(final_dataset, f, indent=4)
 
-    calculate_statistics(clean_dataset, formatted_data)
-    eval_score_robustness(clean_dataset, eval_robustness)
+    calculate_statistics(filtered_data)
+    eval_score_robustness(filtered_data, eval_robustness)
 
 '''
 python scripts/data/data_preprocess.py \
 --input_file /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/results_seedprompt0.json \
---output_file /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_data.json \
+--output_dir /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_dataset \
 --filter_out_threshold 0.2 \
 --products_filepath /local/data/shared/aqd/input_data/walmart_products.json
 '''
