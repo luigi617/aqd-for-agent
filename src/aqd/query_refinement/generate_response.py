@@ -39,6 +39,8 @@ def generate_response(
     """
     Generate response
     """
+    if query_node.response != "":
+        return query_node.response
 
     generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
     

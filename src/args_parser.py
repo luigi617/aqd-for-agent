@@ -17,11 +17,21 @@ DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
 
 class Argument:
     def __init__(self, args):
+        self.command = args.command
+        if self.command == "run":
+            self.load_new_config(args)
+        else:
+            self.load_old_config(args)
+
+
+    def load_new_config(self, args):
         self.seed = args.seed
 
         self.initial_prompt = json.load(args.init_prompt.open())
     
         self.products = json.load(args.products.open())
+
+        self.prev_result = json.load(args.prev_result.open()) if args.prev_result else None
 
         self.filtering_policy = args.filtering_policy.open().read()
         self.preferred_definition = json.load(args.preferred_definition.open())
@@ -56,9 +66,76 @@ class Argument:
 
         self.output_path = args.output_path
 
-def argument_parser():
- 
-    parser = argparse.ArgumentParser()
+        self.config = {
+            "seed": self.seed,
+            "initial_prompt": self.initial_prompt,
+            "products": self.products,
+            "filtering_policy": self.filtering_policy,
+            "preferred_definition": self.preferred_definition,
+            "unpreferred_definition": self.unpreferred_definition,
+            "query_refinement_strategies": self.query_refinement_strategies,
+            "n_queries": self.n_queries,
+            "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
+            "n_prompt_refinemnet_children": self.n_prompt_refinemnet_children,
+            "n_prompt_refinemnet_beam_search_size": self.n_prompt_refinemnet_beam_search_size,
+            "n_query_refinemnet_iterations": self.n_query_refinemnet_iterations,
+            "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
+            "n_threads": self.n_threads,
+            "n_thread_prompt_refiment": self.n_thread_prompt_refiment,
+            "n_thread_queries": self.n_thread_queries,
+            "n_thread_query_refiment": self.n_thread_query_refiment,
+            "generate_model": self.generate_model,
+            "target_model": self.target_model,
+            "evaluation_models": self.evaluation_models,
+            "filtering_model": self.filtering_model,
+            "refinement_model": self.refinement_model,
+            "budget": self.budget,
+        }
+
+    def load_old_config(self, args):
+
+        self.config = json.load(args.config_path.open())
+
+        self.seed = self.config["seed"]
+
+        self.initial_prompt = self.config["initial_prompt"]
+    
+        self.products = self.config["products"]
+
+        self.prev_result = json.load(args.prev_result.open())
+
+        self.filtering_policy = self.config["filtering_policy"]
+        self.preferred_definition = self.config["preferred_definition"]
+        self.unpreferred_definition = self.config["unpreferred_definition"]
+        
+        self.query_refinement_strategies = self.config["query_refinement_strategies"]
+
+        self.n_queries = self.config["n_queries"]
+        self.n_prompt_refinemnet_iterations = self.config["n_prompt_refinemnet_iterations"]
+        self.n_prompt_refinemnet_children = self.config["n_prompt_refinemnet_children"]
+        self.n_prompt_refinemnet_beam_search_size = self.config["n_prompt_refinemnet_beam_search_size"]
+        self.n_query_refinemnet_iterations = self.config["n_query_refinemnet_iterations"]
+        self.n_query_refiment_beam_search_size = self.config["n_query_refiment_beam_search_size"]
+
+        # divide threads into different place
+        self.n_threads = self.config["n_threads"]
+        self.n_thread_prompt_refiment = self.config["n_thread_prompt_refiment"]
+        self.n_thread_queries = self.config["n_thread_queries"]
+        self.n_thread_query_refiment = self.config["n_thread_query_refiment"]
+
+        self.generate_model = self.config["generate_model"]
+        self.target_model = self.config["target_model"]
+        self.evaluation_models = self.config["evaluation_models"]
+        self.filtering_model = self.config["filtering_model"]
+        self.refinement_model = self.config["refinement_model"]
+
+        self.budget = self.config["budget"]
+
+        self.output_path = args.output_path
+
+
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
+
     parser.add_argument(
         "--init_prompt",
         type=Path,
@@ -183,5 +260,58 @@ def argument_parser():
         help="deterministic seed",
         required=False,
     )
+
+
+def argument_parser() -> Argument:
+    parser = argparse.ArgumentParser(prog="pipeline")
+
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True,
+        help="which mode to run: run / resume / expand",
+    )
+
+    # ---- run ----
+    run_parser = subparsers.add_parser(
+        "run", help="fresh run from scratch"
+    )
+    _add_common_arguments(run_parser)
+    # For 'run', prev_result is optional (or could be omitted entirely)
+    run_parser.add_argument(
+        "--prev_result",
+        type=Path,
+        help="path to the previous result (usually not used in 'run')",
+        default=None,
+        required=False,
+    )
+
+    # ---- resume ----
+    resume_parser = subparsers.add_parser(
+        "resume", help="resume from previous result"
+    )
+    resume_parser.add_argument(
+        "--prev_result",
+        type=Path,
+        help="path to the previous result to resume from",
+        required=True,
+    )
+    resume_parser.add_argument(
+        "--config_path",
+        type=Path,
+        help="path to the configuration previously used",
+        required=True,
+    )
+    resume_parser.add_argument(
+        "--output_path",
+        type=Path,
+        help="path to JSON to output results",
+        required=True,
+    )
+
     args = parser.parse_args()
+
+    # Example validation: forbid prev_result on 'run' if you want
+    if args.command == "run" and args.prev_result is not None:
+        parser.error("--prev_result is only allowed with 'resume' or 'expand'")
+
     return Argument(args)

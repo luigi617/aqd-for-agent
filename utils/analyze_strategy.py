@@ -89,7 +89,7 @@ for res in results:
             strategy_map[strategy]["count"] = strategy_map[strategy].get("count", 0)
 
             strategy_map[strategy]["count"] += 1
-            strategy_map[strategy]["score_diff"].append(float(score) - float(parent_score))
+            strategy_map[strategy]["score_diff"].append(score - parent_score)
 
     add_avg_score_diff(strategies_analysis)
     move_child_counts(strategies_analysis)

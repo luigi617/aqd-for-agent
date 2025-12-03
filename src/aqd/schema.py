@@ -18,6 +18,7 @@ class PromptNode:
 
         self.score: Optional[float] = None
 
+
     def to_dict(self) -> dict:
         return {
             "improvement_reason": self.improvement_reason,
@@ -29,8 +30,15 @@ class PromptNode:
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": str(self.score)
+            "score": self.score
         }
+    
+    @property
+    def is_selected(self):
+        return self.query_filter_reason != "" or \
+            self.query_filter_reason != "" or \
+                self.query_filter_reason != "" or \
+                self.query_filter_reason != ""
     
     def query_to_json(self, query_tree_node: "TreeNode"):
         if not query_tree_node: return []
@@ -106,6 +114,13 @@ class QueryNode:
 
         self.score: Optional[float] = None
 
+    def set_is_unpreferred(self, criteria_chosen, unpreferred_definition) -> None:
+        is_unpreferred = False
+        for criterion, _ in criteria_chosen:
+            if criterion in unpreferred_definition:
+                is_unpreferred = True
+        self.is_unpreferred = is_unpreferred
+
     def get_score(self, preference_score_map: dict):
         if self.is_filtered_out:
             return None
@@ -142,7 +157,7 @@ class QueryNode:
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
-            "score": str(self.score),
+            "score": self.score,
         }
 
 

@@ -19,9 +19,9 @@ def wrap_title(title, width=40):
 
 def fmt_score(score):
     try:
-        return f"{float(score):.2f}"
+        return f"{score:.2f}"
     except (TypeError, ValueError):
-        return "None"
+        return None
 
 
 with open(RESULTS_PATH) as f:
@@ -130,8 +130,8 @@ def create_analysis_tree(data, title, output_path):
 
         color = "black"
         try:
-            p = float(parent_score)
-            c = float(child_score)
+            p = parent_score
+            c = child_score
             if c < p:
                 color = "red"
         except Exception:
@@ -231,9 +231,9 @@ def create_unpreferred_query_summary_tree(prompts, title, output_path):
         # prompt["queries"] is a list of query-lists
         for query_list in prompt.get("queries", []):
             for q in query_list:
-                if q.get("is_filtered_out") == False and q.get("score") != "None":
+                if q.get("is_filtered_out") == False and q.get("score"):
                     total_queries += 1
-                    if float(q.get("score")) < helpful_score:
+                    if q.get("score") < helpful_score:
                         unpreferred_queries += 1
 
         # store counts as attributes

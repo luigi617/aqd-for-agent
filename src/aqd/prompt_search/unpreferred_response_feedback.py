@@ -1,9 +1,9 @@
 
 from typing import List, Tuple
 from pydantic import Field, BaseModel
-from aqd.budget import Budget
-from aqd.schema import PromptNode, QueryNode
-from models.model import get_model
+from src.aqd.budget import Budget
+from src.aqd.schema import PromptNode, QueryNode
+from src.models.model import get_model
 
 
 
@@ -75,6 +75,8 @@ def unpreferred_response_feedback(
     budget: Budget,
     unpreferred_definition: dict,
 ) -> Tuple[str, List[str], List[str]]:
+    if prompt_node.unpreferred_response_reason != "" and prompt_node.unpreferred_response_improvement_suggestions != "":
+        return prompt_node.unpreferred_response_reason, prompt_node.unpreferred_response_improvement_suggestions
     
     unpreferred_response_chain = get_model(model_path, UnpreferredResponseFeedbackSchema, budget=budget)
     prompt = prompt_node.prompt

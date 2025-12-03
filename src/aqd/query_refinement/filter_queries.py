@@ -31,6 +31,8 @@ def filter_queries(
     """
     Filters queries based on filtering policy definition.
     """
+    if query_node.filtering_reason != "":
+        return not query_node.is_filtered_out, query_node.filtering_reason
     filter_query_chain = get_model(model_path, FilteredQuerySchema, retries=3, budget=budget)
 
     query = query_node.query
