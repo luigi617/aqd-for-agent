@@ -1,10 +1,10 @@
 
-python3 src/main.py resume \
-    --prev_result 'output_data/test1/results_depth0.json' \
-    --config_path 'output_data/test1/config.json'\
-    --output_path 'output_data/test2/results.json' \
+python3 -m src.main resume \
+    --prev_result 'output_data/test2/results.json' \
+    --config_path 'output_data/test2/config.json'\
+    --output_path 'output_data/test3/results.json' \
 
-# python3 src/main.py run \
+# python3 -m src.main run \
 #     --generate_model 'gpt-5-nano' \
 #     --target_model 'qwen3:8b' \
 #     --evaluation_models 'gpt-5-nano' 'gemini-2.5-flash-lite' 'deepseek-chat' \
@@ -26,7 +26,7 @@ python3 src/main.py resume \
 #     --seed 617 \
     
 
-# python3 src/main.py run \
+# python3 -m src.main run \
 #     --generate_model 'gpt-5-mini' \
 #     --target_model 'qwen3:8b' \
 #     --evaluation_models 'gpt-5-mini' 'gemini-2.5-flash' 'deepseek-reasoner' \
