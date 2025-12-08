@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+from src.config import Config
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
 from src.aqd.prompt_search.generate_queries import generate_queries
 from src.aqd.prompt_search.refine_prompt import refine_prompt
@@ -16,55 +17,13 @@ from src.aqd.query_refinement.query_refinement import QueryRefinement
 
 
 class PromptSearch:
-    def __init__(self, prompt,
-                 products,
-                 n_queries,
-                 generate_model,
-                 refinement_model,
-                 target_model,
-                 filtering_model,
-                 evaluation_models,
-                 preferred_definition,
-                 unpreferred_definition,
-                 preference_score_map,
-                 filtering_policy,
-                 query_refinement_strategies,
+    def __init__(self, config: Config, base_depth_output_path):
+        
+        self.config: Config = config
 
-                 n_prompt_refinemnet_children,
-                 n_prompt_refinemnet_beam_search_size,
-                 n_query_refinemnet_iterations,
-                 n_query_refiment_beam_search_size,
-                 n_thread_queries,
-                 n_thread_query_refiment,
-
-                 base_depth_output_path,
-                 budget,
-                 ):
-        self.root: TreeNode = TreeNode(PromptNode(prompt))
-        self.products: List[dict] = products
-        self.n_queries: int = n_queries
-
-        self.generate_model = generate_model
-        self.refinement_model = refinement_model
-        self.target_model = target_model
-        self.filtering_model = filtering_model
-        self.evaluation_models = evaluation_models
-
-        self.preferred_definition = preferred_definition
-        self.unpreferred_definition = unpreferred_definition
-        self.preference_score_map = preference_score_map
-        self.filtering_policy = filtering_policy
-        self.query_refinement_strategies = query_refinement_strategies
-
-        self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
-        self.n_prompt_refinemnet_beam_search_size = n_prompt_refinemnet_beam_search_size
-        self.n_query_refinemnet_iterations = n_query_refinemnet_iterations
-        self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
-        self.n_thread_queries = n_thread_queries
-        self.n_thread_query_refiment = n_thread_query_refiment
+        self.root: TreeNode = TreeNode(PromptNode(config.initial_prompt))
 
         self.base_depth_output_path = base_depth_output_path
-        self.budget = budget
 
 
 
@@ -72,28 +31,19 @@ class PromptSearch:
         query_refinement = QueryRefinement(
             query_node=query_node,
             query_tree_node=query_tree_node,
-            target_model=self.target_model,
-            filtering_model=self.filtering_model,
-            refinement_model=self.refinement_model,
-            evaluation_models=self.evaluation_models,
-            preferred_definition=self.preferred_definition,
-            unpreferred_definition=self.unpreferred_definition,
-            preference_score_map=self.preference_score_map,
-            filtering_policy=self.filtering_policy,
-            query_refinement_strategies=self.query_refinement_strategies,
-            n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
-            budget=self.budget,
+            config=self.config
+            
         )
-        return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
-                                                n_workers=self.n_thread_query_refiment)
+        return query_node, query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
+                                                n_workers=self.config.n_thread_query_refiment)
 
-    def _process_node(self, tree_node):
+    def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
         
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
-            max_workers = min(self.n_thread_queries, len(prompt_node.queries))
+            max_workers = min(self.config.n_thread_queries, len(prompt_node.queries))
             results = []
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
                 futures = [
@@ -107,8 +57,8 @@ class PromptSearch:
             for query_node, query_tree_node in results:
                 prompt_node.query_refinement_map[query_node] = query_tree_node
         
-            prompt_node.get_score(self.preference_score_map)
-        print("Prompt node budget: Spent:", self.budget.spent_usd, "remaining:", self.budget.remaining_usd)
+            prompt_node.get_score(self.config.preference_score_map)
+        print("Prompt node budget: Spent:", self.config.budget.spent_usd, "remaining:", self.config.budget.remaining_usd)
         return tree_node
     
     def run(self, max_depth = 3, n_workers = 5):
@@ -135,7 +85,7 @@ class PromptSearch:
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
 
                         next_level.extend(ptn.children)
-                        n_prompt_refinement = max(self.n_prompt_refinemnet_children - len(ptn.children), 0)
+                        n_prompt_refinement = max(self.config.n_prompt_refinemnet_children - len(ptn.children), 0)
                         next_prompts = self.refine_prompt(prompt_node, n_prompt_refinement)
                         for next_prompt_node in next_prompts:
                             child = TreeNode(next_prompt_node, parent=ptn)
@@ -147,14 +97,14 @@ class PromptSearch:
         return self.root
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
-        n_to_be_generated_queries = max(self.n_queries - len(prompt_node.queries), 0)
-        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, n_to_be_generated_queries)
+        n_to_be_generated_queries = max(self.config.n_queries - len(prompt_node.queries), 0)
+        queries = generate_queries(prompt_node, self.config.generate_model, self.config.budget, self.config.products, n_to_be_generated_queries)
         for query, product, attribute in queries:
             prompt_node.queries.append(QueryNode(query, product, attribute))
         return prompt_node
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = query_filter_feedback(prompt_node, self.refinement_model, self.budget, self.filtering_policy)
+        res = query_filter_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.filtering_policy)
         reason, improvement_suggestions = res
 
         prompt_node.query_filter_reason = reason
@@ -163,7 +113,7 @@ class PromptSearch:
         return prompt_node
 
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.budget, self.unpreferred_definition)
+        res = unpreferred_response_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.unpreferred_definition)
         reason, improvement_suggestions = res
 
         prompt_node.unpreferred_response_reason = reason
@@ -174,11 +124,11 @@ class PromptSearch:
     def refine_prompt(self, prompt_node: PromptNode, n_prompt_refinement: int) -> List[PromptNode]:
         new_promtps = refine_prompt(
             prompt_node,
-            self.refinement_model,
-            self.budget,
-            self.filtering_policy,
-            self.preferred_definition,
-            self.unpreferred_definition,
+            self.config.refinement_model,
+            self.config.budget,
+            self.config.filtering_policy,
+            self.config.preferred_definition,
+            self.config.unpreferred_definition,
             n_prompt_refinement
         )
         
@@ -193,7 +143,7 @@ class PromptSearch:
         selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if ptn.value.is_selected]
         not_selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if not ptn.value.is_selected]
 
-        beam = self.n_prompt_refinemnet_beam_search_size
+        beam = self.config.n_prompt_refinemnet_beam_search_size
 
         if len(selected_tree_nodes) >= beam:
             return selected_tree_nodes
@@ -248,7 +198,7 @@ class PromptSearch:
         print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
     def load_prev_result(self, result: list) -> "PromptSearch":
-        product_map = {product["product_name"]: product for product in self.products}
+        product_map = {product["product_name"]: product for product in self.config.products}
         
         def laod_prev_queries(query_result: list) -> TreeNode:
             query_graph = defaultdict(list)

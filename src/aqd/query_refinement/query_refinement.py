@@ -5,6 +5,7 @@ from tqdm import tqdm
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from src.config import Config
 from src.aqd.query_refinement.filter_queries import filter_queries
 from src.aqd.query_refinement.generate_response import generate_response
 from src.aqd.query_refinement.evaluate_responses import evaluate_responses
@@ -16,37 +17,13 @@ from src.aqd.query_refinement.refine_query import refine_query
 
 class QueryRefinement:
     
-    def __init__(self, query_node,
-                 query_tree_node,
-                 target_model,
-                 filtering_model,
-                 refinement_model,
-                 evaluation_models,
-                 preferred_definition,
-                 unpreferred_definition,
-                 preference_score_map,
-                 filtering_policy,
-                 query_refinement_strategies,
-                 n_query_refiment_beam_search_size,
-                 budget,):
+    def __init__(self, query_node, query_tree_node, config: Config):
         if isinstance(query_tree_node, TreeNode):
             self.root: TreeNode = query_tree_node
         else:
             self.root: TreeNode = TreeNode(query_node)
-
-        self.target_model = target_model
-        self.filtering_model = filtering_model
-        self.refinement_model = refinement_model
-        self.evaluation_models = evaluation_models
-
-        self.preferred_definition = preferred_definition
-        self.unpreferred_definition = unpreferred_definition
-        self.preference_score_map = preference_score_map
-        self.filtering_policy = filtering_policy
-        self.query_refinement_strategies = query_refinement_strategies
+        self.config: Config = config
         
-        self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
-        self.budget = budget
 
     def _process_node(self, tree_node):
         query_node = tree_node.value
@@ -63,7 +40,7 @@ class QueryRefinement:
             pbar.update(1)
             query_node = self.modify_responses(query_node)
             pbar.update(1)
-            query_node.get_score(self.preference_score_map)
+            query_node.get_score(self.config.preference_score_map)
 
         return tree_node
 
@@ -106,27 +83,27 @@ class QueryRefinement:
     
     def filter_queries(self, query_node: QueryNode) -> QueryNode:
         satisfy_filter, reasoning = filter_queries(query_node,
-                                                   self.filtering_model,
-                                                   self.budget,
-                                                   self.filtering_policy)
+                                                   self.config.filtering_model,
+                                                   self.config.budget,
+                                                   self.config.filtering_policy)
         query_node.is_filtered_out = not satisfy_filter
         query_node.filtering_reason = reasoning
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.target_model, self.budget)
+        response = generate_response(query_node, self.config.target_model, self.config.budget)
         query_node.response = response
         return query_node
     
     def evaluate_responses(self, query_node: QueryNode) -> QueryNode:
         criteria_chosen, reason, individual_evals = evaluate_responses(query_node,
-                                                     self.evaluation_models,
-                                                     self.refinement_model,
-                                                     self.budget,
-                                                     self.preferred_definition,
-                                                     self.unpreferred_definition)
+                                                     self.config.evaluation_models,
+                                                     self.config.refinement_model,
+                                                     self.config.budget,
+                                                     self.config.preferred_definition,
+                                                     self.config.unpreferred_definition)
         
-        query_node.set_is_unpreferred(criteria_chosen, self.unpreferred_definition)
+        query_node.set_is_unpreferred(criteria_chosen, self.config.unpreferred_definition)
         query_node.evaluation = criteria_chosen
         query_node.evaluation_reason = reason
         query_node.individual_evaluations = individual_evals
@@ -138,12 +115,12 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
-        strategy_to_be_used = list(set(self.query_refinement_strategies) - set(strategy_used))
-        query_node = tree_node.value
+        strategy_to_be_used = list(set(self.config.query_refinement_strategies) - set(strategy_used))
+        query_node: QueryNode = tree_node.value
         proposed_queries: List[Tuple[str, str]] = refine_query(
             tree_node,
-            self.refinement_model,
-            self.budget,
+            self.config.refinement_model,
+            self.config.budget,
             strategy_to_be_used
         )
         next_query_nodes = []
@@ -157,7 +134,7 @@ class QueryRefinement:
         selected_tree_nodes = [n for n in valid_nodes if n.children]
         not_selected_tree_nodes = [n for n in valid_nodes if not n.children]
 
-        beam = self.n_query_refiment_beam_search_size
+        beam = self.config.n_query_refiment_beam_search_size
 
         if len(selected_tree_nodes) >= beam:
             return selected_tree_nodes
