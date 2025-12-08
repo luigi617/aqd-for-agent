@@ -40,13 +40,13 @@ def main(args):
     # subsets = random.sample(data, 50)
 
     # evaluate intent diversity and summarize the intents
-    # intent_labeled_data, intents_statistics = evaluate_intent_diversity(data, args.model_path)
-    # print(intents_statistics)
-    # # save the intent labeled data
-    # with open(os.path.join(args.output_dir, "intent_labeled_data.json"), "w") as f:
-    #     json.dump(intent_labeled_data, f, indent=4)
-    # with open(os.path.join(args.output_dir, "intents_statistics.json"), "w") as f:
-    #     json.dump(intents_statistics, f, indent=4)
+    intent_labeled_data, intents_statistics = evaluate_intent_diversity(data, args.model_path)
+    print(intents_statistics)
+    # save the intent labeled data
+    with open(os.path.join(args.output_dir, "intent_labeled_data.json"), "w") as f:
+        json.dump(intent_labeled_data, f, indent=4)
+    with open(os.path.join(args.output_dir, "intents_statistics.json"), "w") as f:
+        json.dump(intents_statistics, f, indent=4)
 
     # evaluate lexical diversity
     lexical_diversity = evaluate_lexical_diversity(data)
@@ -79,3 +79,10 @@ if __name__ == "__main__":
         data = json.load(f)
 
     main(args)
+
+'''
+python -m scripts.eval.diversity_analysis \
+--input_file /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/human_annotation/real_unhelpful_logs_1293.json \
+--output_dir /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/human_annotation \
+--embedding_model_path Qwen/Qwen3-Embedding-0.6B
+'''
