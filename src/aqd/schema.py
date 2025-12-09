@@ -1,6 +1,6 @@
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
-from functools import cached_property
+from src.aqd.ucb import UCB
 
 class PromptNode:
     def __init__(self, prompt: str, improvement_reason: Optional[str] = None):
@@ -114,6 +114,8 @@ class QueryNode:
 
         self.score: Optional[float] = None
 
+        self.strategy_ucb: Optional[UCB] = None
+
     def set_is_unpreferred(self, criteria_chosen, unpreferred_definition) -> None:
         is_unpreferred = False
         for criterion, _ in criteria_chosen:
@@ -158,6 +160,7 @@ class QueryNode:
             "evaluation_reason": self.evaluation_reason,
             "query_refinement_strategy": self.query_refinement_strategy,
             "score": self.score,
+            "strategy_ucb": self.strategy_ucb.to_dict() if isinstance(self.strategy_ucb, UCB) else None,
         }
 
 

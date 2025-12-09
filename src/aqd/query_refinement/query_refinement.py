@@ -5,6 +5,7 @@ from tqdm import tqdm
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from src.aqd.ucb import UCB
 from src.config import Config
 from src.aqd.query_refinement.filter_queries import filter_queries
 from src.aqd.query_refinement.generate_response import generate_response
@@ -23,12 +24,20 @@ class QueryRefinement:
         else:
             self.root: TreeNode = TreeNode(query_node)
         self.config: Config = config
+
+
+        if self.root.value.strategy_ucb is None:
+            self.root.value.strategy_ucb = UCB(
+                arms=self.config.query_refinement_strategies,
+                variant="ucb1",
+                epsilon=0.05,
+            )
         
 
-    def _process_node(self, tree_node):
-        query_node = tree_node.value
+    def _process_node(self, tree_node: TreeNode):
+        query_node: QueryNode = tree_node.value
         with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
-
+            strategy = query_node.query_refinement_strategy
             query_node = self.filter_queries(query_node)
             pbar.update(1)
             if query_node.is_filtered_out:
@@ -40,7 +49,13 @@ class QueryRefinement:
             pbar.update(1)
             query_node = self.modify_responses(query_node)
             pbar.update(1)
-            query_node.get_score(self.config.preference_score_map)
+            query_node_score = query_node.get_score(self.config.preference_score_map)
+
+            if strategy != "" and tree_node.parent:
+                parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)
+                if isinstance(parent_query_node_score, float) and isinstance(query_node_score, float):
+                    reward = max(parent_query_node_score - query_node_score, 0)
+                    self.root.value.strategy_ucb.update(strategy, reward)
 
         return tree_node
 
@@ -79,7 +94,6 @@ class QueryRefinement:
         
         return self.root
             
-        
     
     def filter_queries(self, query_node: QueryNode) -> QueryNode:
         satisfy_filter, reasoning = filter_queries(query_node,
@@ -115,7 +129,13 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
-        strategy_to_be_used = list(set(self.config.query_refinement_strategies) - set(strategy_used))
+
+        beam_size = self.config.n_query_refiment_beam_search_size
+        n_strategy_to_select = beam_size - len(strategy_used)
+        strategy_to_be_used = self.root.value.strategy_ucb.select(k=n_strategy_to_select,
+                                                                  strategies_ingored=strategy_used,
+                                                                  try_all=tree_node.parent is None)
+        
         query_node: QueryNode = tree_node.value
         proposed_queries: List[Tuple[str, str]] = refine_query(
             tree_node,

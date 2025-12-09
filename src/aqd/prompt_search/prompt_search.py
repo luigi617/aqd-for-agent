@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+from src.aqd.ucb import UCB
 from src.config import Config
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
 from src.aqd.prompt_search.generate_queries import generate_queries
@@ -18,24 +19,23 @@ from src.aqd.query_refinement.query_refinement import QueryRefinement
 
 class PromptSearch:
     def __init__(self, config: Config, base_depth_output_path):
-        
         self.config: Config = config
-
         self.root: TreeNode = TreeNode(PromptNode(config.initial_prompt))
-
         self.base_depth_output_path = base_depth_output_path
 
 
-
     def _run_single_query_refinement(self, query_node, query_tree_node):
-        query_refinement = QueryRefinement(
-            query_node=query_node,
-            query_tree_node=query_tree_node,
-            config=self.config
-            
-        )
-        return query_node, query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
-                                                n_workers=self.config.n_thread_query_refiment)
+        try:
+            query_refinement = QueryRefinement(
+                query_node=query_node,
+                query_tree_node=query_tree_node,
+                config=self.config
+            )
+            query_node_res = query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
+                                                    n_workers=self.config.n_thread_query_refiment)
+            return query_node, query_node_res
+        except Exception as _:
+            return query_node, query_refinement.root
 
     def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
@@ -44,7 +44,6 @@ class PromptSearch:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
             max_workers = min(self.config.n_thread_queries, len(prompt_node.queries))
-            results = []
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
                 futures = [
                     inner_pool.submit(self._run_single_query_refinement, q, prompt_node.query_refinement_map.get(q))
@@ -52,10 +51,8 @@ class PromptSearch:
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
                     query_node, query_tree_node = fut.result()
-                    results.append((query_node, query_tree_node))
+                    prompt_node.query_refinement_map[query_node] = query_tree_node
             pbar.update(1)
-            for query_node, query_tree_node in results:
-                prompt_node.query_refinement_map[query_node] = query_tree_node
         
             prompt_node.get_score(self.config.preference_score_map)
         print("Prompt node budget: Spent:", self.config.budget.spent_usd, "remaining:", self.config.budget.remaining_usd)
@@ -221,7 +218,19 @@ class PromptSearch:
                 query_node.evaluation = query_json["evaluation"]
                 query_node.evaluation_reason = query_json["evaluation_reason"]
                 query_node.score = query_json["score"]
-                query_node.set_is_unpreferred(query_json["evaluation"], self.unpreferred_definition)
+                strategy_ucb = query_json["strategy_ucb"]
+                
+                if strategy_ucb is not None:
+                    query_node.strategy_ucb = UCB(
+                        arms = self.config.query_refinement_strategies,
+                        variant = strategy_ucb["variant"],
+                        epsilon = strategy_ucb["epsilon"]
+                    )
+                    query_node.strategy_ucb.set_ucb(strategy_ucb["counts"],
+                                                    strategy_ucb["means"],
+                                                    strategy_ucb["m2"],
+                                                    strategy_ucb["total_pulls"])
+                query_node.set_is_unpreferred(query_json["evaluation"], self.config.unpreferred_definition)
 
                 for next_query in query_graph.get(query_json["id"], []):
                     new_query_tree_node = TreeNode(QueryNode("", {}, []))
