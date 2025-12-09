@@ -119,6 +119,13 @@ class PromptSearch:
         return prompt_node
 
     def refine_prompt(self, prompt_node: PromptNode, n_prompt_refinement: int) -> List[PromptNode]:
+        previous_prompts = []
+        stack = [self.root]
+        while stack:
+            prompt_tree_node = stack.pop()
+            previous_prompts.append((prompt_tree_node.value.prompt, prompt_tree_node.value.improvement_reason))
+            stack.extend(prompt_tree_node.children)
+
         new_promtps = refine_prompt(
             prompt_node,
             self.config.refinement_model,
@@ -126,6 +133,7 @@ class PromptSearch:
             self.config.filtering_policy,
             self.config.preferred_definition,
             self.config.unpreferred_definition,
+            previous_prompts,
             n_prompt_refinement
         )
         

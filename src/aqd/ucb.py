@@ -1,5 +1,6 @@
 import math
 import random
+import threading
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -18,38 +19,56 @@ class UCB:
         self.means: Dict[Any, float] = defaultdict(float)
         self.m2: Dict[Any, float] = defaultdict(float)
         self.total_pulls: int = 0
-    
-    def set_ucb(self, counts, means, m2, total_pulls):
-        self.counts = counts
-        self.means = means
-        self.m2 = m2
-        self.total_pulls = total_pulls
 
-    def select(self, k: int = 3, strategies_ingored = [], try_all: bool = False) -> List[Any]:
-        
+        self._lock = threading.Lock()
+    
+    def set_ucb(self, counts: Dict[Any,int], means: Dict[Any,float], m2: Dict[Any,float], total_pulls: int):
+        with self._lock:
+            self.counts = defaultdict(int, counts)
+            self.means = defaultdict(float, means)
+            self.m2 = defaultdict(float, m2)
+            self.total_pulls = int(total_pulls)
+
+    def select(self, k: int = 3, strategies_ignored = None, try_all: bool = False) -> List[Any]:
+        if strategies_ignored is None:
+            strategies_ignored = []
+
         if try_all:
-            return [arm for arm in self.arms if arm not in strategies_ingored]
+            return [arm for arm in self.arms if arm not in strategies_ignored]
+        
         k = max(0, min(k, len(self.arms)))
         if k <= 0: return []
 
-        # 2) Otherwise, full UCB scoring
-        scored = self._score_arms(self.arms)
+        with self._lock:
+            scored = self._score_arms(self.arms)
         scored.sort(key=lambda t: t[1], reverse=True)
         chosen = []
         idx = 0
-        while k > 0:
+        while len(chosen) < k and idx < len(scored):
             arm, _ = scored[idx]
-            if arm in strategies_ingored:
-                idx += 1
+            idx += 1
+            if arm in strategies_ignored:
+                continue
+            if arm in chosen:
                 continue
             chosen.append(arm)
-            k -= 1
+        
+        # If we didn't find enough (e.g., many ignored), fill randomly from remaining allowed arms
+        if len(chosen) < k:
+            remaining = [a for a in self.arms if a not in chosen and a not in strategies_ignored]
+            random.shuffle(remaining)
+            to_take = min(k - len(chosen), len(remaining))
+            chosen.extend(remaining[:to_take])
 
-        # 3) epsilon exploration: occasionally swap one chosen with a random low-count arm
-        if random.random() < self.epsilon:
-            total = max(1, self.total_pulls)
-            threshold = max(1, int(total * 0.05))
-            low_count = [arm for arm in self.arms if self.counts[arm] <= threshold and arm not in chosen and arm not in strategies_ingored]
+        # epsilon exploration: occasionally swap one chosen with a random low-count arm
+        if chosen and random.random() < self.epsilon:
+            with self._lock:
+                total = max(1, self.total_pulls)
+                threshold = max(1, int(total * 0.05))
+                low_count = [
+                    arm for arm in self.arms
+                    if self.counts[arm] <= threshold and arm not in chosen and arm not in strategies_ignored
+                ]
             if low_count:
                 replace_idx = -1  # replace last chosen by default
                 chosen[replace_idx] = random.choice(low_count)
@@ -86,27 +105,29 @@ class UCB:
     def update(self, arm: Any, reward: float) -> None:
         
         # incremental Welford update for mean and variance (M2)
-        n = self.counts[arm] + 1
-        prev_mean = self.means[arm]
-        delta = reward - prev_mean
-        new_mean = prev_mean + delta / n
-        # update M2
-        prev_m2 = self.m2[arm]
-        new_m2 = prev_m2 + delta * (reward - new_mean)
+        with self._lock:
+            n = self.counts[arm] + 1
+            prev_mean = self.means[arm]
+            delta = reward - prev_mean
+            new_mean = prev_mean + delta / n
+            # update M2
+            prev_m2 = self.m2[arm]
+            new_m2 = prev_m2 + delta * (reward - new_mean)
 
-        # store
-        self.counts[arm] = n
-        self.means[arm] = new_mean
-        self.m2[arm] = new_m2
+            # store
+            self.counts[arm] = n
+            self.means[arm] = new_mean
+            self.m2[arm] = new_m2
 
-        self.total_pulls += 1
+            self.total_pulls += 1
 
     def to_dict(self):
-        return {
-            "variant": self.variant,
-            "epsilon": self.epsilon,
-            "counts": self.counts,
-            "means": self.means,
-            "m2": self.m2,
-            "total_pulls": self.total_pulls,
-        }
+        with self._lock:
+            return {
+                "variant": self.variant,
+                "epsilon": self.epsilon,
+                "counts": dict(self.counts),
+                "means": dict(self.means),
+                "m2": dict(self.m2),
+                "total_pulls": self.total_pulls,
+            }
