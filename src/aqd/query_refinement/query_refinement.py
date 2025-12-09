@@ -137,13 +137,14 @@ class QueryRefinement:
         return query_node
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
-        strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children] + \
-                        [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
+        strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
+        strategy_not_allowed = [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
+        strategies_ingored = list(set(strategy_used + strategy_not_allowed))
 
         beam_size = self.config.n_query_refiment_beam_search_size
-        n_strategy_to_select = beam_size - len(strategy_used)
+        n_strategy_to_select = min(beam_size, len(self.config.query_refinement_strategies) - len(strategies_ingored))
         strategy_to_be_used = self.root.value.strategy_ucb.select(k=n_strategy_to_select,
-                                                                  strategies_ingored=strategy_used,
+                                                                  strategies_ingored=strategies_ingored,
                                                                   try_all=tree_node.parent is None)
         
         query_node: QueryNode = tree_node.value

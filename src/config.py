@@ -6,39 +6,39 @@ from src.aqd.budget import Budget
 DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
     {
         "description": "Choose at most two words in the sentence, and change them so that they have typos.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Change at most two letters in the sentence.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Add at most two extraneous characters to the end of the sentence.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Replace at most two words in the sentence with synonyms.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Choose at most two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Add at most two semantically neutral words to the sentence.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Paraphrase the sentence.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     },
     {
         "description": "Change the syntactic structure of the sentence.",
-        "max_apply_num": 1
+        "max_apply_num": 1000
     }
 ]
 
