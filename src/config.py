@@ -4,15 +4,42 @@ from src.aqd.budget import Budget
 
 # Stretegy instructions taken from https://arxiv.org/pdf/2310.13345
 DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
-    "Choose at most two words in the sentence, and change them so that they have typos.",
-    "Change at most two letters in the sentence.",
-    "Add at most two extraneous characters to the end of the sentence.",
-    "Replace at most two words in the sentence with synonyms.",
-    "Choose at most two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
-    "Add at most two semantically neutral words to the sentence.",
-    "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
-    "Paraphrase the sentence.",
-    "Change the syntactic structure of the sentence.",
+    {
+        "description": "Choose at most two words in the sentence, and change them so that they have typos.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Change at most two letters in the sentence.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Add at most two extraneous characters to the end of the sentence.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Replace at most two words in the sentence with synonyms.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Choose at most two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Add at most two semantically neutral words to the sentence.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Paraphrase the sentence.",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Change the syntactic structure of the sentence.",
+        "max_apply_num": 1
+    }
 ]
 
 class Config:
@@ -22,6 +49,15 @@ class Config:
             self.load_new_config(args)
         else:
             self.load_old_config(args)
+    
+    @staticmethod
+    def get_strategy_info(query_refinement_strategies):
+        strategies = []
+        strategies_max_apply_num_count = {}
+        for strategy_info in query_refinement_strategies:
+            strategies.append(strategy_info["description"])
+            strategies_max_apply_num_count[strategy_info["description"]] = strategy_info["max_apply_num"]
+        return strategies, strategies_max_apply_num_count
     
     @staticmethod
     def get_preference_info(preferred_definition, unpreferred_definition):
@@ -60,9 +96,13 @@ class Config:
         self.preference_score_map = preference_info[2]
         
         if args.query_refinement_strategies and isinstance(args.query_refinement_strategies, Path):
-            self.query_refinement_strategies = json.load(args.query_refinement_strategies.open())
+            self.original_query_refinement_strategies = json.load(args.query_refinement_strategies.open())
         else:
-            self.query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
+            self.original_query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
+        
+        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
+        self.query_refinement_strategies = strategy_info[0]
+        self.strategies_max_apply_num_count = strategy_info[1]
 
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
@@ -116,7 +156,10 @@ class Config:
         self.unpreferred_definition = preference_info[1]
         self.preference_score_map = preference_info[2]
         
-        self.query_refinement_strategies = old_config["query_refinement_strategies"]
+        self.original_query_refinement_strategies = old_config["query_refinement_strategies"]
+        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
+        self.query_refinement_strategies = strategy_info[0]
+        self.strategies_max_apply_num_count = strategy_info[1]
 
         self.n_queries = old_config["n_queries"]
         self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
@@ -152,7 +195,7 @@ class Config:
             "filtering_policy": self.filtering_policy,
             "preferred_definition": self.original_preferred_definition,
             "unpreferred_definition": self.original_unpreferred_definition,
-            "query_refinement_strategies": self.query_refinement_strategies,
+            "query_refinement_strategies": self.original_query_refinement_strategies,
             "n_queries": self.n_queries,
             "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
             "n_prompt_refinemnet_children": self.n_prompt_refinemnet_children,

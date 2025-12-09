@@ -19,18 +19,27 @@ from src.aqd.query_refinement.refine_query import refine_query
 class QueryRefinement:
     
     def __init__(self, query_node, query_tree_node, config: Config):
+        self.config: Config = config
+
         if isinstance(query_tree_node, TreeNode):
             self.root: TreeNode = query_tree_node
         else:
             self.root: TreeNode = TreeNode(query_node)
-        self.config: Config = config
-
-
+        
+        self.strategies_max_apply_num_count = self.config.strategies_max_apply_num_count.copy()
+        stack = [self.root]
+        while stack:
+            query_tree_node = stack.pop()
+            strategy = query_tree_node.value.query_refinement_strategy
+            if strategy in self.strategies_max_apply_num_count:
+                self.strategies_max_apply_num_count[strategy] -= 1
+            stack.extend(query_tree_node.children)
+            
         if self.root.value.strategy_ucb is None:
             self.root.value.strategy_ucb = UCB(
                 arms=self.config.query_refinement_strategies,
                 variant="ucb1",
-                epsilon=0.05,
+                epsilon=0.20,
             )
         
 
@@ -128,7 +137,8 @@ class QueryRefinement:
         return query_node
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
-        strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
+        strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children] + \
+                        [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
 
         beam_size = self.config.n_query_refiment_beam_search_size
         n_strategy_to_select = beam_size - len(strategy_used)
@@ -147,6 +157,7 @@ class QueryRefinement:
         for query, strategy in proposed_queries:
             new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_refinement_strategy=strategy)
             next_query_nodes.append(new_query_node)
+            self.strategies_max_apply_num_count[strategy] -= 1
         return next_query_nodes
     
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
