@@ -166,7 +166,7 @@ class QueryRefinement:
             self.strategies_max_apply_num_count[strategy] -= 1
         return next_query_nodes
     
-    def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+    def _prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         valid_nodes = [n for n in query_tree_nodes if n.value.score is not None]
         selected_tree_nodes = [n for n in valid_nodes if n.children]
         not_selected_tree_nodes = [n for n in valid_nodes if not n.children]
@@ -199,3 +199,7 @@ class QueryRefinement:
         return selected_tree_nodes + strictly_better + chosen_from_ties
     
 
+    def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        remaining_query_tree_nodes = self._prune_query_nodes(query_tree_nodes)
+        min_score = min(self.config.preference_score_map.values())
+        return [qtn for qtn in remaining_query_tree_nodes if qtn.value.get_score(self.config.preference_score_map) > min_score]

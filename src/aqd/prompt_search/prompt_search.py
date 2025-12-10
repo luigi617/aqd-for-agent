@@ -171,7 +171,7 @@ class PromptSearch:
 
         return next_prompt_nodes
     
-    def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+    def _prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if ptn.value.is_selected]
         not_selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if not ptn.value.is_selected]
 
@@ -199,6 +199,11 @@ class PromptSearch:
         chosen_from_ties = random.sample(tied_group, need)
 
         return selected_tree_nodes + strictly_better + chosen_from_ties
+    
+    def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        remaining_prompt_tree_nodes = self._prune_prompt_nodes(prompt_tree_nodes)
+        min_score = min(self.config.preference_score_map.values())
+        return [ptn for ptn in remaining_prompt_tree_nodes if ptn.value.get_score(self.config.preference_score_map) > min_score]
 
 
     def result_to_json(self, result: TreeNode, max_depth = 10**9+7):
