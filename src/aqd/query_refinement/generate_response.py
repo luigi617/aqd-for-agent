@@ -45,7 +45,8 @@ def generate_response(
     generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
     
     query = query_node.query
-    product = query_node.product
+    query_generation_extra_info = query_node.query_generation_extra_info
+    product = query_generation_extra_info["product"]
         
     # build product information
     attributes_str = get_all_attribute_with_value(product)

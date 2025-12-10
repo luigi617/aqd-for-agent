@@ -90,13 +90,11 @@ class PromptNode:
         return self.score <= other.score
     
 
-
 class QueryNode:
-    def __init__(self, query: str, product: dict, attributes: List, query_refinement_strategy: Optional[str] = None):
+    def __init__(self, query: str, query_generation_extra_info: dict, query_refinement_strategy: Optional[str] = None):
         self.query_refinement_strategy: Optional[str] = query_refinement_strategy
         
-        self.product = product
-        self.attributes = attributes
+        self.query_generation_extra_info: dict = query_generation_extra_info
         
         self.query: str = query
         
@@ -148,10 +146,12 @@ class QueryNode:
 
 
     def to_dict(self) -> dict:
+        query_generation_extra_info = self.query_generation_extra_info.copy()
+        if "product" in query_generation_extra_info:
+            query_generation_extra_info["product"] = query_generation_extra_info["product"].get("product_name")
         return {
             "query": self.query,
-            "product": self.product.get("product_name"),
-            "attributes": self.attributes,
+            "query_generation_extra_info": query_generation_extra_info,
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,
             "response": self.response,

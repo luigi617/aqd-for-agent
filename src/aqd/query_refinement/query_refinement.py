@@ -78,6 +78,7 @@ class QueryRefinement:
         depth = 0
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
+
             while current_level:
                 allow_refine = depth < max_depth
                 futures = [
@@ -88,7 +89,11 @@ class QueryRefinement:
                 next_level = []
 
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Query refinement: depth {depth}"):
-                    fut.result()
+                    try:
+                        fut.result()
+                    except Exception as e:
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        raise
                 if allow_refine:
                     query_tree_node_to_be_rifined = self.prune_query_nodes(current_level)
                     for qtn in query_tree_node_to_be_rifined:
@@ -141,8 +146,8 @@ class QueryRefinement:
         strategy_not_allowed = [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
         strategies_ignored = list(set(strategy_used + strategy_not_allowed))
 
-        beam_size = self.config.n_query_refiment_beam_search_size
-        n_strategy_to_select = min(beam_size, len(self.config.query_refinement_strategies) - len(strategies_ignored))
+        strategy_size = 5
+        n_strategy_to_select = min(strategy_size, len(self.config.query_refinement_strategies) - len(strategies_ignored))
         strategy_to_be_used = self.root.value.strategy_ucb.select(k=n_strategy_to_select,
                                                                   strategies_ignored=strategies_ignored,
                                                                   try_all=tree_node.parent is None)
@@ -156,7 +161,7 @@ class QueryRefinement:
         )
         next_query_nodes = []
         for query, strategy in proposed_queries:
-            new_query_node = QueryNode(query, product=query_node.product, attributes=query_node.attributes, query_refinement_strategy=strategy)
+            new_query_node = QueryNode(query, query_generation_extra_info=query_node.query_generation_extra_info, query_refinement_strategy=strategy)
             next_query_nodes.append(new_query_node)
             self.strategies_max_apply_num_count[strategy] -= 1
         return next_query_nodes

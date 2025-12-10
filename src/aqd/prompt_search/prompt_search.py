@@ -1,8 +1,8 @@
 import json
 import os
 import random
-import contextvars
-from typing import List, Optional
+import threading
+from typing import List
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -22,6 +22,9 @@ class PromptSearch:
         self.config: Config = config
         self.root: TreeNode = TreeNode(PromptNode(config.initial_prompt))
         self.base_depth_output_path = base_depth_output_path
+
+        self.product_idx = 0
+        self._lock = threading.Lock()
 
 
     def _run_single_query_refinement(self, query_node, query_tree_node):
@@ -50,7 +53,11 @@ class PromptSearch:
                     for q in prompt_node.queries
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
-                    query_node, query_tree_node = fut.result()
+                    try:
+                        query_node, query_tree_node = fut.result()
+                    except Exception as e:
+                        inner_pool.shutdown(wait=False, cancel_futures=True)
+                        raise
                     prompt_node.query_refinement_map[query_node] = query_tree_node
             pbar.update(1)
         
@@ -72,7 +79,11 @@ class PromptSearch:
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
-                    fut.result()
+                    try:
+                        fut.result()
+                    except Exception as e:
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        raise
                 
                 if allow_refine:
                     prompt_tree_node_to_be_rifined = current_level if depth == 0 else self.prune_prompt_nodes(current_level)
@@ -95,9 +106,22 @@ class PromptSearch:
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
         n_to_be_generated_queries = max(self.config.n_queries - len(prompt_node.queries), 0)
-        queries = generate_queries(prompt_node, self.config.generate_model, self.config.budget, self.config.products, n_to_be_generated_queries)
-        for query, product, attribute in queries:
-            prompt_node.queries.append(QueryNode(query, product, attribute))
+        
+        with self._lock:
+            queries = generate_queries(
+                prompt_node,
+                self.config.generate_model,
+                self.config.budget,
+                self.config.products,
+                self.product_idx,
+                n_to_be_generated_queries,
+            )
+            
+            for query, product, attribute, product_idx in queries:
+                query_generation_extra_info = {"product": product, "attribute": attribute, "product_idx": product_idx}
+                prompt_node.queries.append(QueryNode(query, query_generation_extra_info))
+                self.product_idx = max(self.product_idx, product_idx + 1)
+
         return prompt_node
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
@@ -204,7 +228,7 @@ class PromptSearch:
 
     def load_prev_result(self, result: list) -> "PromptSearch":
         product_map = {product["product_name"]: product for product in self.config.products}
-        
+
         def laod_prev_queries(query_result: list) -> TreeNode:
             query_graph = defaultdict(list)
             for query in query_result:
@@ -216,8 +240,12 @@ class PromptSearch:
                 query_tree_node, query_json = stack.pop()
                 query_node: QueryNode = query_tree_node.value
                 query_node.query_refinement_strategy = query_json["query_refinement_strategy"]
-                query_node.product = product_map[query_json["product"]]
-                query_node.attributes = query_json["attributes"]
+                query_generation_extra_info = query_json["query_generation_extra_info"]
+                if "product" in query_generation_extra_info:
+                    query_generation_extra_info["product"] = product_map[query_generation_extra_info["product"]]
+                query_node.query_generation_extra_info = query_generation_extra_info
+                with self._lock:
+                    self.product_idx = max(self.product_idx, query_node.query_generation_extra_info.get("product_idx") + 1)
                 query_node.query = query_json["query"]
                 query_node.is_filtered_out = query_json["is_filtered_out"]
                 query_node.filtering_reason = query_json["filtering_reason"]
