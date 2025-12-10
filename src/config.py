@@ -3,6 +3,7 @@ from pathlib import Path
 from src.aqd.budget import Budget
 
 # Stretegy instructions taken from https://arxiv.org/pdf/2310.13345
+
 DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
     {
         "description": "Choose at most two words in the sentence, and change them so that they have typos.",
@@ -53,11 +54,13 @@ class Config:
     @staticmethod
     def get_strategy_info(query_refinement_strategies):
         strategies = []
+        strategies_prompt_map = {}
         strategies_max_apply_num_count = {}
         for strategy_info in query_refinement_strategies:
             strategies.append(strategy_info["description"])
+            strategies_prompt_map[strategy_info["description"]] = strategy_info["prompt_name"]
             strategies_max_apply_num_count[strategy_info["description"]] = strategy_info["max_apply_num"]
-        return strategies, strategies_max_apply_num_count
+        return strategies, strategies_max_apply_num_count, strategies_prompt_map
     
     @staticmethod
     def get_preference_info(preferred_definition, unpreferred_definition):
@@ -103,6 +106,7 @@ class Config:
         strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
         self.query_refinement_strategies = strategy_info[0]
         self.strategies_max_apply_num_count = strategy_info[1]
+        self.strategies_prompt_map = strategy_info[2]
 
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
@@ -160,6 +164,7 @@ class Config:
         strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
         self.query_refinement_strategies = strategy_info[0]
         self.strategies_max_apply_num_count = strategy_info[1]
+        self.strategies_prompt_map = strategy_info[2]
 
         self.n_queries = old_config["n_queries"]
         self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
