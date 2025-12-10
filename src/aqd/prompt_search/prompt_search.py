@@ -58,14 +58,11 @@ class PromptSearch:
                     for q in prompt_node.queries
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
-                    try:
-                        err, query_node, query_tree_node = fut.result()
-                        if err is not None:
-                            raise err
-                    except Exception as e:
-                        prompt_node.query_refinement_map[query_node] = query_tree_node
+                    err, query_node, query_tree_node = fut.result()
+                    prompt_node.query_refinement_map[query_node] = query_tree_node
+                    if err is not None:
                         inner_pool.shutdown(wait=False, cancel_futures=True)
-                        raise
+                        raise err
             pbar.update(1)
         
             prompt_node.get_score(self.config.preference_score_map)
@@ -74,7 +71,6 @@ class PromptSearch:
     
     def run(self, max_depth = 3, n_workers = 5):
 
-        
         current_level = [self.root]
         depth = 0
 
