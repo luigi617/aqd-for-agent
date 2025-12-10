@@ -2,7 +2,7 @@ import json
 import os
 import random
 import threading
-from typing import List
+from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -36,9 +36,14 @@ class PromptSearch:
             )
             query_node_res = query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
                                                     n_workers=self.config.n_thread_query_refiment)
-            return query_node, query_node_res
-        except Exception as _:
-            return query_node, query_refinement.root
+            return None, query_node, query_node_res
+        except Exception as e:
+            res = None
+            try:
+                res = query_refinement.root 
+            except:
+                res = None
+            return e, query_node, res
 
     def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
@@ -54,11 +59,13 @@ class PromptSearch:
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
                     try:
-                        query_node, query_tree_node = fut.result()
+                        err, query_node, query_tree_node = fut.result()
+                        if err is not None:
+                            raise err
                     except Exception as e:
+                        prompt_node.query_refinement_map[query_node] = query_tree_node
                         inner_pool.shutdown(wait=False, cancel_futures=True)
                         raise
-                    prompt_node.query_refinement_map[query_node] = query_tree_node
             pbar.update(1)
         
             prompt_node.get_score(self.config.preference_score_map)
@@ -229,7 +236,8 @@ class PromptSearch:
     def load_prev_result(self, result: list) -> "PromptSearch":
         product_map = {product["product_name"]: product for product in self.config.products}
 
-        def laod_prev_queries(query_result: list) -> TreeNode:
+        def laod_prev_queries(query_result: list) -> Optional[TreeNode]:
+            if not query_result: return None
             query_graph = defaultdict(list)
             for query in query_result:
                 query_graph[query["parent_id"]].append(query)

@@ -23,7 +23,7 @@ class PromptNode:
         return {
             "improvement_reason": self.improvement_reason,
             "prompt": self.prompt,
-            "queries": [self.query_to_json(self.query_refinement_map[query]) for query in self.queries],
+            "queries": [self.query_to_json(self.query_refinement_map.get(query)) for query in self.queries],
             
             "query_filter_reason": self.query_filter_reason,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
