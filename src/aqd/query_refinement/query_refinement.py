@@ -157,7 +157,8 @@ class QueryRefinement:
             tree_node,
             self.config.refinement_model,
             self.config.budget,
-            strategy_to_be_used
+            strategy_to_be_used,
+            self.config.strategies_prompt_map,
         )
         next_query_nodes = []
         for query, strategy in proposed_queries:
