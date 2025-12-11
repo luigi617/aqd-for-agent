@@ -146,7 +146,7 @@ class QueryRefinement:
         strategy_not_allowed = [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
         strategies_ignored = list(set(strategy_used + strategy_not_allowed))
 
-        strategy_size = 5
+        strategy_size = 3
         n_strategy_to_select = min(strategy_size, len(self.config.query_refinement_strategies) - len(strategies_ignored))
         strategy_to_be_used = self.root.value.strategy_ucb.select(k=n_strategy_to_select,
                                                                   strategies_ignored=strategies_ignored,

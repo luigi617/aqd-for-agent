@@ -100,7 +100,7 @@ def refine_query(
                 profile=strategy,
             )
         elif strategy_prompt_map[strategy] == "scenario":
-            strategy_prompt = QUERY_PROFILE_PROMPT.format(
+            strategy_prompt = QUERY_SCENARIO_PROMPT.format(
                 current_query=query,
                 scenario=strategy,
             )
