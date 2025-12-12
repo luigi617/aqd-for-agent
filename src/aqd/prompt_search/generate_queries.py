@@ -71,7 +71,7 @@ def generate_queries(
     
     generated_queries = []
     for _ in range(n_queries):
-        product = products[product_idx]
+        product = products[product_idx % len(products)]
         attributes = get_random_attributes(product)
         attributes_str = ", ".join(attributes)
 

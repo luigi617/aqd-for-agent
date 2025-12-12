@@ -96,8 +96,8 @@ class PromptSearch:
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
 
                         next_level.extend(ptn.children)
-                        n_prompt_refinement = max(self.config.n_prompt_refinemnet_children - len(ptn.children), 0)
-                        next_prompts = self.refine_prompt(prompt_node, n_prompt_refinement)
+                        used_strategy = [ptn.value.improvement_strategy for ptn in ptn.children]
+                        next_prompts = self.refine_prompt(prompt_node, used_strategy)
                         for next_prompt_node in next_prompts:
                             child = TreeNode(next_prompt_node, parent=ptn)
                             ptn.children.append(child)
@@ -145,7 +145,7 @@ class PromptSearch:
 
         return prompt_node
 
-    def refine_prompt(self, prompt_node: PromptNode, n_prompt_refinement: int) -> List[PromptNode]:
+    def refine_prompt(self, prompt_node: PromptNode, used_strategy: List[str]) -> List[PromptNode]:
         previous_prompts = []
         stack = [self.root]
         while stack:
@@ -161,12 +161,12 @@ class PromptSearch:
             self.config.preferred_definition,
             self.config.unpreferred_definition,
             previous_prompts,
-            n_prompt_refinement
+            used_strategy=used_strategy,
         )
         
         next_prompt_nodes = []
-        for prompt, improvement_reason in new_promtps:
-            new_prompt_node = PromptNode(prompt, improvement_reason)
+        for prompt, improvement_reason, improvement_strategy in new_promtps:
+            new_prompt_node = PromptNode(prompt, improvement_reason, improvement_strategy)
             next_prompt_nodes.append(new_prompt_node)
 
         return next_prompt_nodes
@@ -294,6 +294,7 @@ class PromptSearch:
             prompt_tree_node, prompt_json = stack.pop()
             prompt_node: PromptNode = prompt_tree_node.value
             prompt_node.prompt = prompt_json["prompt"]
+            prompt_node.improvement_strategy = prompt_json["improvement_strategy"]
             prompt_node.improvement_reason = prompt_json["improvement_reason"]
             prompt_node.query_filter_reason = prompt_json["query_filter_reason"]
             prompt_node.query_filter_improvement_suggestions = prompt_json["query_filter_improvement_suggestions"]

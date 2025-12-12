@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.aqd.ucb import UCB
 
 class PromptNode:
-    def __init__(self, prompt: str, improvement_reason: Optional[str] = None):
+    def __init__(self, prompt: str, improvement_reason: Optional[str] = None, improvement_strategy: Optional[str] = None):
+        self.improvement_strategy: Optional[str] = improvement_strategy
         self.improvement_reason: Optional[str] = improvement_reason
         self.prompt: str = prompt
         self.queries: List[QueryNode] = []
@@ -21,6 +22,7 @@ class PromptNode:
 
     def to_dict(self) -> dict:
         return {
+            "improvement_strategy": self.improvement_strategy,
             "improvement_reason": self.improvement_reason,
             "prompt": self.prompt,
             "queries": [self.query_to_json(self.query_refinement_map.get(query)) for query in self.queries],

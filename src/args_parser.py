@@ -84,13 +84,6 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         required=False,
     )
     parser.add_argument(
-        "--n_prompt_refinemnet_children",
-        type=int,
-        default=3,
-        help="number of children in the tree of prompt optimization",
-        required=False,
-    )
-    parser.add_argument(
         "--n_prompt_refinemnet_beam_search_size",
         type=int,
         default=3,

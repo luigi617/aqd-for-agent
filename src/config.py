@@ -110,7 +110,6 @@ class Config:
 
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
-        self.n_prompt_refinemnet_children = args.n_prompt_refinemnet_children
         self.n_prompt_refinemnet_beam_search_size = args.n_prompt_refinemnet_beam_search_size
         self.n_query_refinemnet_iterations = args.n_query_refinemnet_iterations
         self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
@@ -168,7 +167,6 @@ class Config:
 
         self.n_queries = old_config["n_queries"]
         self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
-        self.n_prompt_refinemnet_children = old_config["n_prompt_refinemnet_children"]
         self.n_prompt_refinemnet_beam_search_size = old_config["n_prompt_refinemnet_beam_search_size"]
         self.n_query_refinemnet_iterations = old_config["n_query_refinemnet_iterations"]
         self.n_query_refiment_beam_search_size = old_config["n_query_refiment_beam_search_size"]
@@ -203,7 +201,6 @@ class Config:
             "query_refinement_strategies": self.original_query_refinement_strategies,
             "n_queries": self.n_queries,
             "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
-            "n_prompt_refinemnet_children": self.n_prompt_refinemnet_children,
             "n_prompt_refinemnet_beam_search_size": self.n_prompt_refinemnet_beam_search_size,
             "n_query_refinemnet_iterations": self.n_query_refinemnet_iterations,
             "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
