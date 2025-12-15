@@ -1,8 +1,8 @@
 
 import json
 
-dir_path = "gpt5-mini"
-RESULTS_PATH = f'output_data/{dir_path}/results_seedprompt0.json'
+dir_path = "lucy_res"
+RESULTS_PATH = f'output_data/{dir_path}/results.json'
 DATASET_PATH = f'output_data/{dir_path}/dataset.json'
 
 with open(RESULTS_PATH) as f:
