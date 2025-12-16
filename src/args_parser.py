@@ -9,6 +9,15 @@ from src.config import Config
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument(
+        "--task",
+        type=str,
+        help="task to run",
+        required=True,
+        choices=["ours", "tap", "pair"],
+        default="ours",
+    )
+
+    parser.add_argument(
         "--init_prompt",
         type=Path,
         help="path to JSON specifying input prompt",
