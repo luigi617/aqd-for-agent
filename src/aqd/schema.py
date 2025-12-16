@@ -17,6 +17,9 @@ class PromptNode:
         self.unpreferred_response_reason: str = ""
         self.unpreferred_response_improvement_suggestions: str = ""
 
+        self.preferred_response_reason: str = ""
+        self.preferred_response_improvement_suggestions: str = ""
+
         self.score: Optional[float] = None
 
 
@@ -29,6 +32,9 @@ class PromptNode:
             
             "query_filter_reason": self.query_filter_reason,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
+
+            "preferred_response_reason": self.preferred_response_reason,
+            "preferred_response_improvement_suggestions": self.preferred_response_improvement_suggestions,
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
@@ -102,6 +108,7 @@ class QueryNode:
         
         self.is_filtered_out: bool = False
         self.filtering_reason: str = ""
+        self.filtering_confidence_score: Optional[float] = None
         
         self.response: str = ""
 
@@ -156,6 +163,7 @@ class QueryNode:
             "query_generation_extra_info": query_generation_extra_info,
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,
+            "filtering_confidence_score": self.filtering_confidence_score,
             "response": self.response,
             "individual_evaluations": self.individual_evaluations,
             "evaluation": [list(ev) for ev in self.evaluation],

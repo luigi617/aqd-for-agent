@@ -13,6 +13,7 @@ from src.aqd.schema import PromptNode, QueryNode, TreeNode
 from src.aqd.prompt_search.generate_queries import generate_queries
 from src.aqd.prompt_search.refine_prompt import refine_prompt
 from src.aqd.prompt_search.query_filter_feedback import query_filter_feedback
+from src.aqd.prompt_search.preferred_response_feedback import preferred_response_feedback
 from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
 from src.aqd.query_refinement.query_refinement import QueryRefinement
 
@@ -93,6 +94,7 @@ class PromptSearch:
                     for ptn in prompt_tree_node_to_be_rifined:
                         prompt_node = ptn.value
                         prompt_node = self.get_query_filter_feedback(prompt_node)
+                        prompt_node = self.get_preferred_response_feedback(prompt_node)
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
 
                         next_level.extend(ptn.children)
@@ -136,6 +138,15 @@ class PromptSearch:
 
         return prompt_node
 
+    def get_preferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
+        res = preferred_response_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.preferred_definition, self.config.unpreferred_definition)
+        reason, improvement_suggestions = res
+
+        prompt_node.preferred_response_reason = reason
+        prompt_node.preferred_response_improvement_suggestions = improvement_suggestions
+
+        return prompt_node
+    
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
         res = unpreferred_response_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.unpreferred_definition)
         reason, improvement_suggestions = res
@@ -150,7 +161,7 @@ class PromptSearch:
         stack = [self.root]
         while stack:
             prompt_tree_node = stack.pop()
-            previous_prompts.append((prompt_tree_node.value.prompt, prompt_tree_node.value.improvement_reason))
+            previous_prompts.append(prompt_tree_node.value.prompt)
             stack.extend(prompt_tree_node.children)
 
         new_promtps = refine_prompt(
@@ -258,6 +269,7 @@ class PromptSearch:
                 query_node.query = query_json["query"]
                 query_node.is_filtered_out = query_json["is_filtered_out"]
                 query_node.filtering_reason = query_json["filtering_reason"]
+                query_node.filtering_confidence_score = query_json["filtering_confidence_score"]
                 query_node.response = query_json["response"]
                 query_node.individual_evaluations = query_json["individual_evaluations"]
                 query_node.evaluation = query_json["evaluation"]
@@ -298,6 +310,8 @@ class PromptSearch:
             prompt_node.improvement_reason = prompt_json["improvement_reason"]
             prompt_node.query_filter_reason = prompt_json["query_filter_reason"]
             prompt_node.query_filter_improvement_suggestions = prompt_json["query_filter_improvement_suggestions"]
+            prompt_node.preferred_response_reason = prompt_json["preferred_response_reason"]
+            prompt_node.preferred_response_improvement_suggestions = prompt_json["preferred_response_improvement_suggestions"]
             prompt_node.unpreferred_response_reason = prompt_json["unpreferred_response_reason"]
             prompt_node.unpreferred_response_improvement_suggestions = prompt_json["unpreferred_response_improvement_suggestions"]
             prompt_node.score = prompt_json["score"]

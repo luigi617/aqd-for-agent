@@ -15,12 +15,13 @@ Filtering policy:
 {filtering_policy}
 
 Output Format:
-Return the reasoning that explains whether the query satisfies the filtering policy, followed by the boolean value True if the query satisfies the filtering policy, and False otherwise.
+Return the reasoning that explains whether the query satisfies the filtering policy, followed by the boolean value True if the query satisfies the filtering policy, and False otherwise. Finally, provide a confidence score between 0 and 1 indicating the confidence in your filtering decision.
 """
 
 class FilteredQuerySchema(BaseModel):
     reasoning: str = Field(description="reasoning behind the query satisfing or not satisfying the filtering policy.")
     satisfy_filter: bool = Field(description="True if the query satisfies the filtering policy, False otherwise.")
+    confidence_score: float = Field(description="A confidence score between 0 and 1 indicating the confidence in the filtering decision.")
 
 def filter_queries(
         query_node: QueryNode,
@@ -43,4 +44,4 @@ def filter_queries(
         )
     )
     
-    return decision['satisfy_filter'], decision['reasoning']
+    return decision['satisfy_filter'], decision['reasoning'], decision['confidence_score']

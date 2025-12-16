@@ -110,12 +110,13 @@ class QueryRefinement:
             
     
     def filter_queries(self, query_node: QueryNode) -> QueryNode:
-        satisfy_filter, reasoning = filter_queries(query_node,
+        satisfy_filter, reasoning, filtering_confidence_score = filter_queries(query_node,
                                                    self.config.filtering_model,
                                                    self.config.budget,
                                                    self.config.filtering_policy)
         query_node.is_filtered_out = not satisfy_filter
         query_node.filtering_reason = reasoning
+        query_node.filtering_confidence_score = filtering_confidence_score
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
