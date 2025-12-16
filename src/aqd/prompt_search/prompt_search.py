@@ -248,7 +248,7 @@ class PromptSearch:
     def load_prev_result(self, result: list) -> "PromptSearch":
         product_map = {product["product_name"]: product for product in self.config.products}
 
-        def laod_prev_queries(query_result: list) -> Optional[TreeNode]:
+        def load_prev_queries(query_result: list) -> Optional[TreeNode]:
             if not query_result: return None
             query_graph = defaultdict(list)
             for query in query_result:
@@ -259,23 +259,23 @@ class PromptSearch:
             while stack:
                 query_tree_node, query_json = stack.pop()
                 query_node: QueryNode = query_tree_node.value
-                query_node.query_refinement_strategy = query_json["query_refinement_strategy"]
-                query_generation_extra_info = query_json["query_generation_extra_info"]
+                query_node.query_refinement_strategy = query_json.get("query_refinement_strategy", None)
+                query_generation_extra_info = query_json.get("query_generation_extra_info", {})
                 if "product" in query_generation_extra_info:
                     query_generation_extra_info["product"] = product_map[query_generation_extra_info["product"]]
                 query_node.query_generation_extra_info = query_generation_extra_info
                 with self._lock:
                     self.product_idx = max(self.product_idx, query_node.query_generation_extra_info.get("product_idx") + 1)
                 query_node.query = query_json["query"]
-                query_node.is_filtered_out = query_json["is_filtered_out"]
-                query_node.filtering_reason = query_json["filtering_reason"]
-                query_node.filtering_confidence_score = query_json["filtering_confidence_score"]
-                query_node.response = query_json["response"]
-                query_node.individual_evaluations = query_json["individual_evaluations"]
-                query_node.evaluation = query_json["evaluation"]
-                query_node.evaluation_reason = query_json["evaluation_reason"]
-                query_node.score = query_json["score"]
-                strategy_ucb = query_json["strategy_ucb"]
+                query_node.is_filtered_out = query_json.get("is_filtered_out", False)
+                query_node.filtering_reason = query_json.get("filtering_reason", "")
+                query_node.filtering_confidence_score = query_json.get("filtering_confidence_score", None)
+                query_node.response = query_json.get("response", "")
+                query_node.individual_evaluations = query_json.get("individual_evaluations", [])
+                query_node.evaluation = query_json.get("evaluation", [])
+                query_node.evaluation_reason = query_json.get("evaluation_reason", "")
+                query_node.score = query_json.get("score", None)
+                strategy_ucb = query_json.get("strategy_ucb", None)
                 
                 if strategy_ucb is not None:
                     query_node.strategy_ucb = UCB(
@@ -287,7 +287,7 @@ class PromptSearch:
                                                     strategy_ucb["means"],
                                                     strategy_ucb["m2"],
                                                     strategy_ucb["total_pulls"])
-                query_node.set_is_unpreferred(query_json["evaluation"], self.config.unpreferred_definition)
+                query_node.set_is_unpreferred(query_json.get("evaluation", []), self.config.unpreferred_definition)
 
                 for next_query in query_graph.get(query_json["id"], []):
                     new_query_tree_node = TreeNode(QueryNode("", {}, []))
@@ -306,17 +306,17 @@ class PromptSearch:
             prompt_tree_node, prompt_json = stack.pop()
             prompt_node: PromptNode = prompt_tree_node.value
             prompt_node.prompt = prompt_json["prompt"]
-            prompt_node.improvement_strategy = prompt_json["improvement_strategy"]
-            prompt_node.improvement_reason = prompt_json["improvement_reason"]
-            prompt_node.query_filter_reason = prompt_json["query_filter_reason"]
-            prompt_node.query_filter_improvement_suggestions = prompt_json["query_filter_improvement_suggestions"]
-            prompt_node.preferred_response_reason = prompt_json["preferred_response_reason"]
-            prompt_node.preferred_response_improvement_suggestions = prompt_json["preferred_response_improvement_suggestions"]
-            prompt_node.unpreferred_response_reason = prompt_json["unpreferred_response_reason"]
-            prompt_node.unpreferred_response_improvement_suggestions = prompt_json["unpreferred_response_improvement_suggestions"]
-            prompt_node.score = prompt_json["score"]
-            for query_res in prompt_json["queries"]:
-                query_tree_node = laod_prev_queries(query_res)
+            prompt_node.improvement_strategy = prompt_json.get("improvement_strategy", None)
+            prompt_node.improvement_reason = prompt_json.get("improvement_reason", None)
+            prompt_node.query_filter_reason = prompt_json.get("query_filter_reason", "")
+            prompt_node.query_filter_improvement_suggestions = prompt_json.get("query_filter_improvement_suggestions", "")
+            prompt_node.preferred_response_reason = prompt_json.get("preferred_response_reason", "")
+            prompt_node.preferred_response_improvement_suggestions = prompt_json.get("preferred_response_improvement_suggestions", "")
+            prompt_node.unpreferred_response_reason = prompt_json.get("unpreferred_response_reason", "")
+            prompt_node.unpreferred_response_improvement_suggestions = prompt_json.get("unpreferred_response_improvement_suggestions", "")
+            prompt_node.score = prompt_json.get("score", None)
+            for query_res in prompt_json.get("queries", []):
+                query_tree_node = load_prev_queries(query_res)
                 prompt_node.queries.append(query_tree_node.value)
                 prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node
 
