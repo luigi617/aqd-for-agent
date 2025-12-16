@@ -87,6 +87,7 @@ class Config:
 
 
     def load_new_config(self, args):
+        self.task = args.task
         self.seed = args.seed
 
         self.initial_prompt = json.load(args.init_prompt.open())
@@ -142,6 +143,11 @@ class Config:
             self.budget = Budget(limit_usd=self.budget_limit)
 
         self.output_path = args.output_path
+
+        # Tree of Attack with Pruning arguments
+        self.max_depth = args.max_depth
+        self.max_width = args.max_width
+        self.n_branching_factor = args.n_branching_factor
 
 
     def load_old_config(self, args):
