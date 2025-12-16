@@ -39,7 +39,7 @@ def generate_response(
     """
     Generate response
     """
-    if query_node.response != "":
+    if query_node.response is not None:
         return query_node.response
 
     generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)

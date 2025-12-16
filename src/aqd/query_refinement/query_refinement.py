@@ -60,7 +60,7 @@ class QueryRefinement:
             pbar.update(1)
             query_node_score = query_node.get_score(self.config.preference_score_map)
 
-            if strategy != "" and tree_node.parent:
+            if strategy is not None and tree_node.parent:
                 parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)
                 if isinstance(parent_query_node_score, float) and isinstance(query_node_score, float):
                     reward = max(parent_query_node_score - query_node_score, 0)

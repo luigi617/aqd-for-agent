@@ -127,7 +127,7 @@ def evaluate_responses(
     """
     Evaluate response
     """
-    if query_node.evaluation and query_node.evaluation_reason != "" and query_node.individual_evaluations:
+    if query_node.evaluation and query_node.evaluation_reason is not None and query_node.individual_evaluations:
         return query_node.evaluation, query_node.evaluation_reason, query_node.individual_evaluations
     
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)

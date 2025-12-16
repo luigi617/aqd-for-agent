@@ -79,7 +79,7 @@ def preferred_response_feedback(
     preferred_definition: dict,
     unpreferred_definition: dict,
 ) -> Tuple[str, List[str], List[str]]:
-    if prompt_node.preferred_response_reason != "" and prompt_node.preferred_response_improvement_suggestions != "":
+    if prompt_node.preferred_response_reason is not None and prompt_node.preferred_response_improvement_suggestions is not None:
         return prompt_node.preferred_response_reason, prompt_node.preferred_response_improvement_suggestions
     
     preferred_response_chain = get_model(model_path, PreferredResponseFeedbackSchema, budget=budget)
