@@ -264,16 +264,6 @@ class TreeOfAttackWithPruning:
                     },
                 )
             )
-
-        for global_query, product, attribute in global_queries:
-            root = TreeNode(
-                QueryNode(
-                    global_query,
-                    query_generation_extra_info={
-                        "product": product,
-                        "attribute": attribute,
-                        "conversation_history": [],
-                    },
-                )
-            )
+        for query_node in prompt_node.queries:
+            root = TreeNode(query_node)
             self._single_run(root)
