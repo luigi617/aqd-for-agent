@@ -39,14 +39,14 @@ def main(args):
     # random.seed(42)
     # subsets = random.sample(data, 50)
 
-    # evaluate intent diversity and summarize the intents
-    intent_labeled_data, intents_statistics = evaluate_intent_diversity(data, args.model_path)
-    print(intents_statistics)
-    # save the intent labeled data
-    with open(os.path.join(args.output_dir, "intent_labeled_data.json"), "w") as f:
-        json.dump(intent_labeled_data, f, indent=4)
-    with open(os.path.join(args.output_dir, "intents_statistics.json"), "w") as f:
-        json.dump(intents_statistics, f, indent=4)
+    # # evaluate intent diversity and summarize the intents
+    # intent_labeled_data, intents_statistics = evaluate_intent_diversity(data, args.model_path)
+    # print(intents_statistics)
+    # # save the intent labeled data
+    # with open(os.path.join(args.output_dir, "intent_labeled_data.json"), "w") as f:
+    #     json.dump(intent_labeled_data, f, indent=4)
+    # with open(os.path.join(args.output_dir, "intents_statistics.json"), "w") as f:
+    #     json.dump(intents_statistics, f, indent=4)
 
     # evaluate lexical diversity
     lexical_diversity = evaluate_lexical_diversity(data)
@@ -77,6 +77,12 @@ if __name__ == "__main__":
 
     with open(args.input_file, "r") as f:
         data = json.load(f)
+
+    # create the output directory
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+    else:
+        print(f"Output directory {args.output_dir} already exists")
 
     main(args)
 
