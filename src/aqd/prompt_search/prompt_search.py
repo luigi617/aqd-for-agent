@@ -1,119 +1,77 @@
 import json
 import os
 import random
-import contextvars
+import threading
 from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+from src.aqd.ucb import UCB
+from src.config import Config
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
 from src.aqd.prompt_search.generate_queries import generate_queries
 from src.aqd.prompt_search.refine_prompt import refine_prompt
 from src.aqd.prompt_search.query_filter_feedback import query_filter_feedback
+from src.aqd.prompt_search.preferred_response_feedback import preferred_response_feedback
 from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
 from src.aqd.query_refinement.query_refinement import QueryRefinement
 
 
 class PromptSearch:
-    def __init__(self, prompt,
-                 products,
-                 n_queries,
-                 generate_model,
-                 refinement_model,
-                 target_model,
-                 filtering_model,
-                 evaluation_models,
-                 preferred_definition,
-                 unpreferred_definition,
-                 preference_score_map,
-                 filtering_policy,
-                 query_refinement_strategies,
-
-                 n_prompt_refinemnet_children,
-                 n_prompt_refinemnet_beam_search_size,
-                 n_query_refinemnet_iterations,
-                 n_query_refiment_beam_search_size,
-                 n_thread_queries,
-                 n_thread_query_refiment,
-
-                 base_depth_output_path,
-                 budget,
-                 ):
-        self.root: TreeNode = TreeNode(PromptNode(prompt))
-        self.products: List[dict] = products
-        self.n_queries: int = n_queries
-
-        self.generate_model = generate_model
-        self.refinement_model = refinement_model
-        self.target_model = target_model
-        self.filtering_model = filtering_model
-        self.evaluation_models = evaluation_models
-
-        self.preferred_definition = preferred_definition
-        self.unpreferred_definition = unpreferred_definition
-        self.preference_score_map = preference_score_map
-        self.filtering_policy = filtering_policy
-        self.query_refinement_strategies = query_refinement_strategies
-
-        self.n_prompt_refinemnet_children = n_prompt_refinemnet_children
-        self.n_prompt_refinemnet_beam_search_size = n_prompt_refinemnet_beam_search_size
-        self.n_query_refinemnet_iterations = n_query_refinemnet_iterations
-        self.n_query_refiment_beam_search_size = n_query_refiment_beam_search_size
-        self.n_thread_queries = n_thread_queries
-        self.n_thread_query_refiment = n_thread_query_refiment
-
+    def __init__(self, config: Config, base_depth_output_path):
+        self.config: Config = config
+        self.root: TreeNode = TreeNode(PromptNode(config.initial_prompt))
         self.base_depth_output_path = base_depth_output_path
-        self.budget = budget
 
+        self.product_idx = 0
+        self._lock = threading.Lock()
 
 
     def _run_single_query_refinement(self, query_node, query_tree_node):
-        query_refinement = QueryRefinement(
-            query_node=query_node,
-            query_tree_node=query_tree_node,
-            target_model=self.target_model,
-            filtering_model=self.filtering_model,
-            refinement_model=self.refinement_model,
-            evaluation_models=self.evaluation_models,
-            preferred_definition=self.preferred_definition,
-            unpreferred_definition=self.unpreferred_definition,
-            preference_score_map=self.preference_score_map,
-            filtering_policy=self.filtering_policy,
-            query_refinement_strategies=self.query_refinement_strategies,
-            n_query_refiment_beam_search_size=self.n_query_refiment_beam_search_size,
-            budget=self.budget,
-        )
-        return query_node, query_refinement.run(max_depth=self.n_query_refinemnet_iterations,
-                                                n_workers=self.n_thread_query_refiment)
+        try:
+            query_refinement = QueryRefinement(
+                query_node=query_node,
+                query_tree_node=query_tree_node,
+                config=self.config
+            )
+            query_node_res = query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
+                                                    n_workers=self.config.n_thread_query_refiment)
+            return None, query_node, query_node_res
+        except Exception as e:
+            res = None
+            try:
+                res = query_refinement.root 
+            except:
+                res = None
+            return e, query_node, res
 
-    def _process_node(self, tree_node):
+    def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
         
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
-            max_workers = min(self.n_thread_queries, len(prompt_node.queries))
-            results = []
+            max_workers = min(self.config.n_thread_queries, len(prompt_node.queries))
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
                 futures = [
                     inner_pool.submit(self._run_single_query_refinement, q, prompt_node.query_refinement_map.get(q))
                     for q in prompt_node.queries
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
-                    query_node, query_tree_node = fut.result()
-                    results.append((query_node, query_tree_node))
+                    err, query_node, query_tree_node = fut.result()
+                    prompt_node.query_refinement_map[query_node] = query_tree_node
+                    if err is not None:
+                        inner_pool.shutdown(wait=False, cancel_futures=True)
+                        raise err
             pbar.update(1)
-            for query_node, query_tree_node in results:
-                prompt_node.query_refinement_map[query_node] = query_tree_node
         
-            prompt_node.get_score(self.preference_score_map)
-        print("Prompt node budget: Spent:", self.budget.spent_usd, "remaining:", self.budget.remaining_usd)
+            prompt_node.get_score(self.config.preference_score_map)
+        print("Prompt node budget: Spent:", self.config.budget.spent_usd, "remaining:", self.config.budget.remaining_usd)
         return tree_node
     
     def run(self, max_depth = 3, n_workers = 5):
 
-        
         current_level = [self.root]
         depth = 0
 
@@ -125,18 +83,23 @@ class PromptSearch:
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):
-                    fut.result()
+                    try:
+                        fut.result()
+                    except Exception as e:
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        raise
                 
                 if allow_refine:
                     prompt_tree_node_to_be_rifined = current_level if depth == 0 else self.prune_prompt_nodes(current_level)
                     for ptn in prompt_tree_node_to_be_rifined:
                         prompt_node = ptn.value
                         prompt_node = self.get_query_filter_feedback(prompt_node)
+                        prompt_node = self.get_preferred_response_feedback(prompt_node)
                         prompt_node = self.get_unpreferred_response_feedback(prompt_node)
 
                         next_level.extend(ptn.children)
-                        n_prompt_refinement = max(self.n_prompt_refinemnet_children - len(ptn.children), 0)
-                        next_prompts = self.refine_prompt(prompt_node, n_prompt_refinement)
+                        used_strategy = [ptn.value.improvement_strategy for ptn in ptn.children]
+                        next_prompts = self.refine_prompt(prompt_node, used_strategy)
                         for next_prompt_node in next_prompts:
                             child = TreeNode(next_prompt_node, parent=ptn)
                             ptn.children.append(child)
@@ -147,14 +110,27 @@ class PromptSearch:
         return self.root
 
     def generate_queries(self, prompt_node: PromptNode) -> PromptNode:
-        n_to_be_generated_queries = max(self.n_queries - len(prompt_node.queries), 0)
-        queries = generate_queries(prompt_node, self.generate_model, self.budget, self.products, n_to_be_generated_queries)
-        for query, product, attribute in queries:
-            prompt_node.queries.append(QueryNode(query, product, attribute))
+        n_to_be_generated_queries = max(self.config.n_queries - len(prompt_node.queries), 0)
+        
+        with self._lock:
+            queries = generate_queries(
+                prompt_node,
+                self.config.generate_model,
+                self.config.budget,
+                self.config.products,
+                self.product_idx,
+                n_to_be_generated_queries,
+            )
+            
+            for query, product, attribute, product_idx in queries:
+                query_generation_extra_info = {"product": product, "attribute": attribute, "product_idx": product_idx}
+                prompt_node.queries.append(QueryNode(query, query_generation_extra_info))
+                self.product_idx = max(self.product_idx, product_idx + 1)
+
         return prompt_node
 
     def get_query_filter_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = query_filter_feedback(prompt_node, self.refinement_model, self.budget, self.filtering_policy)
+        res = query_filter_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.filtering_policy)
         reason, improvement_suggestions = res
 
         prompt_node.query_filter_reason = reason
@@ -162,8 +138,17 @@ class PromptSearch:
 
         return prompt_node
 
+    def get_preferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
+        res = preferred_response_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.preferred_definition, self.config.unpreferred_definition)
+        reason, improvement_suggestions = res
+
+        prompt_node.preferred_response_reason = reason
+        prompt_node.preferred_response_improvement_suggestions = improvement_suggestions
+
+        return prompt_node
+    
     def get_unpreferred_response_feedback(self, prompt_node: PromptNode) -> PromptNode:
-        res = unpreferred_response_feedback(prompt_node, self.refinement_model, self.budget, self.unpreferred_definition)
+        res = unpreferred_response_feedback(prompt_node, self.config.refinement_model, self.config.budget, self.config.unpreferred_definition)
         reason, improvement_suggestions = res
 
         prompt_node.unpreferred_response_reason = reason
@@ -171,29 +156,37 @@ class PromptSearch:
 
         return prompt_node
 
-    def refine_prompt(self, prompt_node: PromptNode, n_prompt_refinement: int) -> List[PromptNode]:
+    def refine_prompt(self, prompt_node: PromptNode, used_strategy: List[str]) -> List[PromptNode]:
+        previous_prompts = []
+        stack = [self.root]
+        while stack:
+            prompt_tree_node = stack.pop()
+            previous_prompts.append(prompt_tree_node.value.prompt)
+            stack.extend(prompt_tree_node.children)
+
         new_promtps = refine_prompt(
             prompt_node,
-            self.refinement_model,
-            self.budget,
-            self.filtering_policy,
-            self.preferred_definition,
-            self.unpreferred_definition,
-            n_prompt_refinement
+            self.config.refinement_model,
+            self.config.budget,
+            self.config.filtering_policy,
+            self.config.preferred_definition,
+            self.config.unpreferred_definition,
+            previous_prompts,
+            used_strategy=used_strategy,
         )
         
         next_prompt_nodes = []
-        for prompt, improvement_reason in new_promtps:
-            new_prompt_node = PromptNode(prompt, improvement_reason)
+        for prompt, improvement_reason, improvement_strategy in new_promtps:
+            new_prompt_node = PromptNode(prompt, improvement_reason, improvement_strategy)
             next_prompt_nodes.append(new_prompt_node)
 
         return next_prompt_nodes
     
-    def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+    def _prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if ptn.value.is_selected]
         not_selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if not ptn.value.is_selected]
 
-        beam = self.n_prompt_refinemnet_beam_search_size
+        beam = self.config.n_prompt_refinemnet_beam_search_size
 
         if len(selected_tree_nodes) >= beam:
             return selected_tree_nodes
@@ -217,6 +210,11 @@ class PromptSearch:
         chosen_from_ties = random.sample(tied_group, need)
 
         return selected_tree_nodes + strictly_better + chosen_from_ties
+    
+    def prune_prompt_nodes(self, prompt_tree_nodes: List[TreeNode]) -> List[TreeNode]:
+        remaining_prompt_tree_nodes = self._prune_prompt_nodes(prompt_tree_nodes)
+        min_score = min(self.config.preference_score_map.values())
+        return [ptn for ptn in remaining_prompt_tree_nodes if ptn.value.get_score(self.config.preference_score_map) > min_score]
 
 
     def result_to_json(self, result: TreeNode, max_depth = 10**9+7):
@@ -248,33 +246,51 @@ class PromptSearch:
         print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
     def load_prev_result(self, result: list) -> "PromptSearch":
-        product_map = {product["product_name"]: product for product in self.products}
-        
-        def laod_prev_queries(query_result: list) -> TreeNode:
+        product_map = {product["product_name"]: product for product in self.config.products}
+
+        def load_prev_queries(query_result: list) -> Optional[TreeNode]:
+            if not query_result: return None
             query_graph = defaultdict(list)
             for query in query_result:
                 query_graph[query["parent_id"]].append(query)
             init_query = [query for query in query_result if query["parent_id"] == None][0]
-            query_root = TreeNode(QueryNode("", {}, []))
+            query_root = TreeNode(QueryNode("", {}))
             stack = [(query_root, init_query)]
             while stack:
                 query_tree_node, query_json = stack.pop()
                 query_node: QueryNode = query_tree_node.value
-                query_node.query_refinement_strategy = query_json["query_refinement_strategy"]
-                query_node.product = product_map[query_json["product"]]
-                query_node.attributes = query_json["attributes"]
+                query_node.query_refinement_strategy = query_json.get("query_refinement_strategy", None)
+                query_generation_extra_info = query_json.get("query_generation_extra_info", {})
+                if "product" in query_generation_extra_info:
+                    query_generation_extra_info["product"] = product_map[query_generation_extra_info["product"]]
+                query_node.query_generation_extra_info = query_generation_extra_info
+                with self._lock:
+                    self.product_idx = max(self.product_idx, query_node.query_generation_extra_info.get("product_idx") + 1)
                 query_node.query = query_json["query"]
-                query_node.is_filtered_out = query_json["is_filtered_out"]
-                query_node.filtering_reason = query_json["filtering_reason"]
-                query_node.response = query_json["response"]
-                query_node.individual_evaluations = query_json["individual_evaluations"]
-                query_node.evaluation = query_json["evaluation"]
-                query_node.evaluation_reason = query_json["evaluation_reason"]
-                query_node.score = query_json["score"]
-                query_node.set_is_unpreferred(query_json["evaluation"], self.unpreferred_definition)
+                query_node.is_filtered_out = query_json.get("is_filtered_out", None)
+                query_node.filtering_reason = query_json.get("filtering_reason", None)
+                query_node.filtering_confidence_score = query_json.get("filtering_confidence_score", None)
+                query_node.response = query_json.get("response", None)
+                query_node.individual_evaluations = query_json.get("individual_evaluations", [])
+                query_node.evaluation = query_json.get("evaluation", [])
+                query_node.evaluation_reason = query_json.get("evaluation_reason", None)
+                query_node.score = query_json.get("score", None)
+                strategy_ucb = query_json.get("strategy_ucb", None)
+                
+                if strategy_ucb is not None:
+                    query_node.strategy_ucb = UCB(
+                        arms = self.config.query_refinement_strategies,
+                        variant = strategy_ucb["variant"],
+                        epsilon = strategy_ucb["epsilon"]
+                    )
+                    query_node.strategy_ucb.set_ucb(strategy_ucb["counts"],
+                                                    strategy_ucb["means"],
+                                                    strategy_ucb["m2"],
+                                                    strategy_ucb["total_pulls"])
+                query_node.set_is_unpreferred(query_json.get("evaluation", []), self.config.unpreferred_definition)
 
                 for next_query in query_graph.get(query_json["id"], []):
-                    new_query_tree_node = TreeNode(QueryNode("", {}, []))
+                    new_query_tree_node = TreeNode(QueryNode("", {}))
                     query_tree_node.children.append(new_query_tree_node)
                     stack.append((new_query_tree_node, next_query))
             return query_root
@@ -290,14 +306,17 @@ class PromptSearch:
             prompt_tree_node, prompt_json = stack.pop()
             prompt_node: PromptNode = prompt_tree_node.value
             prompt_node.prompt = prompt_json["prompt"]
-            prompt_node.improvement_reason = prompt_json["improvement_reason"]
-            prompt_node.query_filter_reason = prompt_json["query_filter_reason"]
-            prompt_node.query_filter_improvement_suggestions = prompt_json["query_filter_improvement_suggestions"]
-            prompt_node.unpreferred_response_reason = prompt_json["unpreferred_response_reason"]
-            prompt_node.unpreferred_response_improvement_suggestions = prompt_json["unpreferred_response_improvement_suggestions"]
-            prompt_node.score = prompt_json["score"]
-            for query_res in prompt_json["queries"]:
-                query_tree_node = laod_prev_queries(query_res)
+            prompt_node.improvement_strategy = prompt_json.get("improvement_strategy", None)
+            prompt_node.improvement_reason = prompt_json.get("improvement_reason", None)
+            prompt_node.query_filter_reason = prompt_json.get("query_filter_reason", None)
+            prompt_node.query_filter_improvement_suggestions = prompt_json.get("query_filter_improvement_suggestions", None)
+            prompt_node.preferred_response_reason = prompt_json.get("preferred_response_reason", None)
+            prompt_node.preferred_response_improvement_suggestions = prompt_json.get("preferred_response_improvement_suggestions", None)
+            prompt_node.unpreferred_response_reason = prompt_json.get("unpreferred_response_reason", None)
+            prompt_node.unpreferred_response_improvement_suggestions = prompt_json.get("unpreferred_response_improvement_suggestions", None)
+            prompt_node.score = prompt_json.get("score", None)
+            for query_res in prompt_json.get("queries", []):
+                query_tree_node = load_prev_queries(query_res)
                 prompt_node.queries.append(query_tree_node.value)
                 prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node
 

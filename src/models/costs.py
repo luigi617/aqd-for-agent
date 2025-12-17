@@ -3,22 +3,23 @@ from typing import Dict
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
-OPENAI_PRICES_PER_1K: Dict[str, Dict[str, float]] = {
-    "gpt-5-mini": {"input": 0.00025, "cached_input": 0.000025, "output": 0.002},
-    "gpt-5-nano": {"input": 0.00005, "cached_input": 0.000005, "output": 0.0004},
+OPENAI_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
+    "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
+    "gpt-5-nano": {"input": 0.05, "cached_input": 0.005, "output": 0.40},
+    "gpt-5.2": {"input": 1.75, "cached_input": 0.175, "output": 14.00},
 }
 
-DEEPSEEK_PRICES_PER_1K: Dict[str, Dict[str, float]] = {
-    "deepseek-chat": {"input": 0.00028, "cached_input": 0.000028, "output": 0.00042},
-    "deepseek-reasoner": {"input": 0.00028, "cached_input": 0.000028, "output": 0.00042},
+DEEPSEEK_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
+    "deepseek-chat": {"input": 0.28, "cached_input": 0.028, "output": 0.42},
+    "deepseek-reasoner": {"input": 0.28, "cached_input": 0.028, "output": 0.42},
 }
 
-GEMINI_PRICES_PER_1K: Dict[str, Dict[str, float]] = {
-    "gemini-2.5-flash-lite": {"input": 0.0001, "cached_input": 0.00001, "output": 0.0004},
-    "gemini-2.5-flash": {"input": 0.0003, "cached_input": 0.00003, "output": 0.0025},
+GEMINI_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
+    "gemini-2.5-flash-lite": {"input": 0.10, "cached_input": 0.01, "output": 0.40},
+    "gemini-2.5-flash": {"input": 0.30, "cached_input": 0.03, "output": 2.50},
 }
 
-OLLAMA_PRICES_PER_1K: Dict[str, Dict[str, float]] = {
+OLLAMA_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
     "qwen3:8b": {"input": 0.0, "cached_input": 0.0, "output": 0.0},
 }
 
@@ -58,11 +59,11 @@ class TokenUsageCallback(BaseCallbackHandler):
 
 def _lookup_price(model_name: str) -> Dict[str, float]:
     if "gpt" in model_name:
-        return OPENAI_PRICES_PER_1K[model_name]
+        return OPENAI_PRICES_PER_1M[model_name]
     if "deepseek" in model_name:
-        return DEEPSEEK_PRICES_PER_1K[model_name]
+        return DEEPSEEK_PRICES_PER_1M[model_name]
     if "qwen" in model_name or "llama" in model_name:
-        return OLLAMA_PRICES_PER_1K[model_name]
+        return OLLAMA_PRICES_PER_1M[model_name]
 
     return {"input": 0.0, "cached_input": 0.0, "output": 0.0}
 
@@ -74,7 +75,7 @@ def compute_cost_usd(
         cached_prompt_tokens: int = 0,) -> float:
     prices = _lookup_price(model_name)
     return (
-        ((prompt_tokens - cached_prompt_tokens) / 1000.0) * prices["input"]
-        + (cached_prompt_tokens / 1000.0) * prices["cached_input"]
-        + (completion_tokens / 1000.0) * prices["output"]
+        ((prompt_tokens - cached_prompt_tokens) / 1000000.0) * prices["input"]
+        + (cached_prompt_tokens / 1000000.0) * prices["cached_input"]
+        + (completion_tokens / 1000000.0) * prices["output"]
     )

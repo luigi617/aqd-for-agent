@@ -58,6 +58,7 @@ def generate_queries(
         model_path: str, 
         budget: Budget,
         products: list[dict],
+        product_idx: int,
         n_queries: int = 5,
     ) -> List[Tuple[str, dict, list]]:
     """
@@ -70,8 +71,7 @@ def generate_queries(
     
     generated_queries = []
     for _ in range(n_queries):
-        
-        product = choice(products)
+        product = products[product_idx % len(products)]
         attributes = get_random_attributes(product)
         attributes_str = ", ".join(attributes)
 
@@ -83,6 +83,7 @@ def generate_queries(
             )
         )['query']
         
-        generated_queries.append((new_query, product, attributes))
+        generated_queries.append((new_query, product, attributes, product_idx))
+        product_idx += 1
 
     return generated_queries
