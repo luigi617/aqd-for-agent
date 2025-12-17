@@ -87,3 +87,36 @@ def generate_queries(
         product_idx += 1
 
     return generated_queries
+
+def generate_queries_w_attr(
+        prompt_node: PromptNode,
+        model_path: str, 
+        budget: Budget,
+        product: dict,
+        n_queries: int = 5,
+    ) -> List[Tuple[str, dict, list]]:
+    """
+    Generate queries based the prompt pool with product attributes.
+    Each prompt will have n_queries total after this function runs.
+    """
+    query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
+    
+    prompt = prompt_node.prompt
+    
+    generated_queries = []
+    for _ in range(n_queries):
+        attributes = product['selected_attributes']
+        attributes_str = ", ".join(attributes)
+
+        new_query = query_chain(
+            QUERY_GENERATION_PROMPT.format(
+                template=prompt,
+                product_name=product.get("product_name"),
+                attributes=attributes_str,
+            )
+        )['query']
+        
+        generated_queries.append((new_query, product, attributes, product_idx))
+        product_idx += 1
+
+    return generated_queries
