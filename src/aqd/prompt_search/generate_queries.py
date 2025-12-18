@@ -24,9 +24,32 @@ Output Format:
 Return the final generated query string.
 """
 
+QUERY_GENERATION_PROMPT_BASELINE = """
+{template}
+
+Product:
+{product_name}
+
+Attributes:
+{attributes}
+
+Instructions (follow all):
+- Do NOT include overly specific product identifiers (e.g., model numbers, SKUs, GTINs).
+- Query must be limited to at most 2 of the given attributes.
+
+Output Format:
+Return the final generated list of query strings.
+"""
+
 class QueryResponseSchema(BaseModel):
     query: str = Field(description="The final generated query string.")
 
+class BaselineQueryResponseSchema(BaseModel):
+    queries: List[str] = Field(
+        min_length=30, 
+        max_length=30, 
+        description="A list of exactly 30 different generated queries about the product and its attribute"
+    )
 
 def get_random_attributes(product):
     
@@ -88,35 +111,33 @@ def generate_queries(
 
     return generated_queries
 
-def generate_queries_w_attr(
+def generate_queries_baseline(
         prompt_node: PromptNode,
         model_path: str, 
         budget: Budget,
         product: dict,
-        n_queries: int = 5,
     ) -> List[Tuple[str, dict, list]]:
     """
     Generate queries based the prompt pool with product attributes.
     Each prompt will have n_queries total after this function runs.
     """
-    query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
+    query_chain = get_model(model_path, BaselineQueryResponseSchema, budget=budget)
     
     prompt = prompt_node.prompt
     
     generated_queries = []
-    for _ in range(n_queries):
-        attributes = product['selected_attributes']
-        attributes_str = ", ".join(attributes)
+    attributes = product['selected_attributes']
+    attributes_str = ", ".join(attributes)
 
-        new_query = query_chain(
-            QUERY_GENERATION_PROMPT.format(
-                template=prompt,
-                product_name=product.get("product_name"),
-                attributes=attributes_str,
-            )
-        )['query']
-        
-        generated_queries.append((new_query, product, attributes, product_idx))
-        product_idx += 1
+    new_query = query_chain(
+        QUERY_GENERATION_PROMPT.format(
+            template=prompt,
+            product_name=product.get("product_name"),
+            attributes=attributes_str,
+        )
+    )['queries']
+    
+    generated_queries.append((new_query, product, attributes, product_idx))
+    product_idx += 1
 
     return generated_queries

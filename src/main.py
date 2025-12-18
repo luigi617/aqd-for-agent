@@ -4,7 +4,7 @@ import random
 import json
 
 from dotenv import load_dotenv
-from gepa.gepa import run_gepa
+from src.gepa.gepa import run_gepa
 from src.config import Config
 from src.args_parser import argument_parser
 from src.aqd.prompt_search.prompt_search import PromptSearch

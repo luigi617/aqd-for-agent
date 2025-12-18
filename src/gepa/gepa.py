@@ -1,12 +1,35 @@
 from typing import Any, List, Mapping, Sequence, Tuple
 from gepa import optimize
 from gepa.core.adapter import DataInst, EvaluationBatch, ProposalFn, RolloutOutput, Trajectory, GEPAAdapter
-from aqd.budget import Budget
+from tqdm import tqdm
+from src.aqd.budget import Budget
 from src.config import Config
 from src.aqd.query_refinement.evaluate_responses import evaluate_responses
+from src.aqd.query_refinement.generate_response import generate_response
 from src.aqd.schema import PromptNode, QueryNode
-from src.aqd.prompt_search.generate_queries import generate_queries_w_attr
+from src.aqd.prompt_search.generate_queries import generate_queries_baseline
 import json
+from pathlib import Path
+
+class EcommerceProposalFn(ProposalFn):
+    def __call__(
+        self,
+        candidate: dict[str, str],
+        reflective_dataset: Mapping[str, Sequence[Mapping[str, Any]]],
+        components_to_update: list[str],
+    ) -> dict[str, str]:
+        """
+        - Given the current `candidate`, a reflective dataset (as returned by
+          `GEPAAdapter.make_reflective_dataset`), and a list of component names to update,
+          return a mapping component_name -> new component text (str). This allows the user
+          to implement their own instruction proposal logic. For example, the user can use
+          a different LLM, implement DSPy signatures, etc. Another example can be situations
+          where 2 or more components need to be updated together (coupled updates).
+
+        Returns
+        - Dict[str, str] mapping component names to newly proposed component texts.
+        """
+        ...
 
 class EcommerceGEPAAdapater(GEPAAdapter):
     def __init__(self, config: Config):
@@ -53,24 +76,28 @@ class EcommerceGEPAAdapater(GEPAAdapter):
         outputs = []
         trajectories = []
 
-        prompt_node = PromptNode(candidate['instruction_text'])
+        print(candidate)
+        prompt_node = PromptNode(candidate)
 
-        for example in batch:
-            generate_queries_w_attr(
+        for example in tqdm(batch, total=len(batch), desc="Processing GEPA batch"):
+            queries = [QueryNode(query) for query in generate_queries_baseline(
                 prompt_node,
                 self.config.generate_model,
                 self.config.budget,
-                
-            )
+                example
+            )]
 
-            chosen_criteria, reasoning, evaluations = evaluate_responses(
-                query_node = QueryNode(),
+            for query in queries:
+              query.response = generate_response(query, self.config.target_model, self.config.budget) 
+
+              chosen_criteria, reasoning, evaluations = evaluate_responses(
+                query_node = query,
                 evaluation_model_paths = self.config.evaluation_models,
                 generative_model_path = self.config.generate_model,
-                budget = self.config.budget
+                budget = self.config.budget,
                 preferred_definition = self.config.preferred_definition,
                 unpreferred_definition = self.config.unpreferred_definition
-            )
+              )
 
             outputs.append(evaluations)
             trajectories.append(reasoning)
@@ -111,11 +138,11 @@ class EcommerceGEPAAdapater(GEPAAdapter):
         """
         ...
 
-    propose_new_texts: ProposalFn | None = None
+    propose_new_texts: ProposalFn | None = EcommerceProposalFn
 
 def run_gepa(config: Config):
     # Load product dataset, TODO: put this in config
-    trainset = json.load('input_data/product_info_1.json')
+    trainset = json.load(Path('input_data/product_info_1.json').open())
 
     adapter = EcommerceGEPAAdapater(config)
 
@@ -124,9 +151,9 @@ def run_gepa(config: Config):
         seed_candidate = config.initial_prompt,
         trainset = trainset,
         adapter = adapter,
-        task_lm = config.generate_model,
         max_metric_calls = 150,
         reflection_lm = config.generate_model,
+        reflection_minibatch_size=20,
     )
 
     print("GEPA Optimized Prompt:", gepa_result.best_candidate['system_prompt'])
