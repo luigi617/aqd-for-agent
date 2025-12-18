@@ -282,7 +282,7 @@ class PromptSearch:
                 
                 if strategy_ucb is not None:
                     query_node.strategy_ucb = UCB(
-                        arms = self.config.query_refinement_strategies,
+                        arms = list(self.config.query_refinement_strategies.keys()),
                         variant = strategy_ucb["variant"],
                         epsilon = strategy_ucb["epsilon"]
                     )

@@ -102,7 +102,7 @@ class TreeOfAttackWithPruning:
                 n_branching_factor=self.n_branching_factor,
                 criteria=self.unpreferred_definition,
                 chat_history=conversation_history_str,
-                strategies=self.strategies,
+                strategies=list(self.strategies.keys()),
             )
         )
         return_queries = []

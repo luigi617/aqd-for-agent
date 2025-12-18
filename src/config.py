@@ -62,14 +62,15 @@ class Config:
     
     @staticmethod
     def get_strategy_info(query_refinement_strategies):
-        strategies = []
-        strategies_prompt_map = {}
-        strategies_max_apply_num_count = {}
+        strategies = {}
+        
         for strategy_info in query_refinement_strategies:
-            strategies.append(strategy_info["description"])
-            strategies_prompt_map[strategy_info["description"]] = strategy_info["prompt_name"]
-            strategies_max_apply_num_count[strategy_info["description"]] = strategy_info["max_apply_num"]
-        return strategies, strategies_max_apply_num_count, strategies_prompt_map
+            desc = strategy_info["description"]
+            strategies[desc] = {}
+            strategies[desc]["prompt_name"] = strategy_info["prompt_name"]
+            strategies[desc]["max_apply_num"] = strategy_info.get("max_apply_num", 1000)
+            strategies[desc]["mutex_group"] = strategy_info.get("mutex_group", None)
+        return strategies
     
     @staticmethod
     def get_preference_info(preferred_definition, unpreferred_definition):
@@ -113,10 +114,7 @@ class Config:
         else:
             self.original_query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
         
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = args.n_queries
         self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
@@ -144,10 +142,6 @@ class Config:
 
         self.output_path = args.output_path
 
-        # Tree of Attack with Pruning arguments
-        self.max_depth = args.max_depth
-        self.max_width = args.max_width
-        self.n_branching_factor = args.n_branching_factor
 
 
     def load_old_config(self, args):
@@ -175,10 +169,7 @@ class Config:
         self.preference_score_map = preference_info[2]
         
         self.original_query_refinement_strategies = old_config["query_refinement_strategies"]
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = old_config["n_queries"]
         self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
