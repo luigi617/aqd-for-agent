@@ -1,5 +1,4 @@
 
-import random
 from typing import List, Tuple
 from pydantic import Field, BaseModel
 from src.aqd.budget import Budget

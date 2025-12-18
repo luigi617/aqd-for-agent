@@ -1,9 +1,9 @@
-import contextvars
+
 import random
-from collections import defaultdict, deque
+from collections import defaultdict
 import time
 from tqdm import tqdm
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.aqd.ucb import UCB
