@@ -114,7 +114,10 @@ def refine_query(
         if not strategy_prompt:
             raise Exception("strategy not recognized")
         
-        refinement = refine_query_chain(strategy_prompt)
+        refinement = refine_query_chain(
+            strategy_prompt,
+            budget_extra_info={"desc": f"Refine query ({query}) for strategy: {strategy}"}
+        )
         proposed_queries.append((refinement["query"], strategy))
 
 

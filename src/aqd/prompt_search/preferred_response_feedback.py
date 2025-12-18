@@ -1,4 +1,5 @@
 
+import heapq
 from typing import List, Tuple
 from pydantic import Field, BaseModel
 from src.aqd.budget import Budget
@@ -48,28 +49,31 @@ def get_preference_criteria_str(preference_definition):
         preference_criteria.extend(criteria)
     return "\n".join([f"- {c}" for c in preference_criteria])
 
+
 def get_preferred_response_str(prompt_node: PromptNode):
-    unpreferred_builder = ""
+    query_responses_heap = []
     for query_node in prompt_node.queries:
-        if not query_node.is_filtered_out:
+        if query_node.is_filtered_out:
             continue
 
         query = query_node.query
         response = query_node.response
         eval_reason = query_node.evaluation_reason
+        score = query_node.score
+
+        heapq.heappush(query_responses_heap, (-score, query, response, eval_reason))
+        if len(query_responses_heap) > 10:
+            heapq.heappop(query_responses_heap)
     
-        is_unpreferred = query_node.is_unpreferred
-
-        if not is_unpreferred:
-            unpreferred_builder += (
-                f"Query: {query}\n"
-                f"Response: {response}\n"
-                f"Reason for preferred: {eval_reason}\n\n"
-            )
-
-    if not unpreferred_builder:
-        unpreferred_builder = "[No preferred responses were generated]"
-    return unpreferred_builder
+    if not query_responses_heap:
+        return "[No preferred responses were generated]"
+    
+    return "\n".join(
+        f"Query: {query}\n"
+        f"Response: {response}\n"
+        f"Reason for preferred: {eval_reason}\n"
+        for _, query, response, eval_reason in query_responses_heap
+    )
 
 
 def preferred_response_feedback(
@@ -94,7 +98,8 @@ def preferred_response_feedback(
             unpreferred_responses=preferred_responses,
             preferred_criteria=preferred_criteria,
             unpreferred_criteria=unpreferred_criteria
-        )
+        ),
+        budget_extra_info={"desc": f"Get preferred response feedback"}
     )
 
     return preferred_response_feedback["reasoning"], preferred_response_feedback["improvement_suggestions"]

@@ -2,6 +2,7 @@ import json
 import os
 import random
 import threading
+import time
 from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -48,7 +49,7 @@ class PromptSearch:
 
     def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
-        
+        start_time = time.perf_counter()
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
@@ -67,6 +68,8 @@ class PromptSearch:
             pbar.update(1)
         
             prompt_node.get_score(self.config.preference_score_map)
+            end_time = time.perf_counter()
+            prompt_node.set_running_time(end_time - start_time)
         print("Prompt node budget: Spent:", self.config.budget.spent_usd, "remaining:", self.config.budget.remaining_usd)
         return tree_node
     

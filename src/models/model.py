@@ -65,7 +65,7 @@ def get_model(
     TRANSIENT_EXC = (APIConnectionError, APITimeoutError, RateLimitError)
     PARSE_EXC = (JSONDecodeError, OutputParserException, ValidationError)
 
-    def run(prompt_text: str):
+    def run(prompt_text: str, budget_extra_info=None):
         # how many total tries (first try + (retries-1) retries)
         infinite = (retries == -1)
         max_tries = float("inf") if infinite else max(1, retries)
@@ -95,6 +95,7 @@ def get_model(
                         prompt_tokens=usage_cb.prompt_tokens,
                         completion_tokens=usage_cb.completion_tokens,
                         model=model_name,
+                        budget_extra_info=budget_extra_info,
                     )
 
                 return model_obj.model_dump()

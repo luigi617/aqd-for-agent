@@ -74,7 +74,8 @@ def query_filter_feedback(
             current_prompts=prompt, 
             filtered_out_queries=filtered_out_queries,
             filtering_policy=filtering_policy
-        )
+        ),
+        budget_extra_info={"desc": f"Get query filter feedback"}
     )
 
     return query_filtering_feedback["reasoning"], query_filtering_feedback["improvement_suggestions"]

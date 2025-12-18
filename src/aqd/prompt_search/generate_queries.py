@@ -88,7 +88,8 @@ def generate_queries(
                 template=prompt,
                 product_name=product.get("product_name"),
                 attributes=attributes_str,
-            )
+            ),
+            budget_extra_info={"desc": f"Generate query for product {product.get('product_name')}"}
         )['query']
         
         generated_queries.append((new_query, product_all_attributes, attributes, product_idx))

@@ -22,6 +22,8 @@ class PromptNode:
 
         self.score: Optional[float] = None
 
+        self.running_time: Optional[float] = None
+
 
     def to_dict(self) -> dict:
         return {
@@ -38,7 +40,8 @@ class PromptNode:
 
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": self.score
+            "score": self.score,
+            "running_time": self.running_time,
         }
     
     @property
@@ -46,6 +49,12 @@ class PromptNode:
         return self.query_filter_reason is not None or \
             self.unpreferred_response_reason is not None or \
             self.preferred_response_reason is not None
+    
+    def set_running_time(self, delta: float):
+        if isinstance(self.running_time, float):
+            self.running_time += delta
+        else:
+            self.running_time = delta
             
     
     def query_to_json(self, query_tree_node: "TreeNode"):
@@ -123,6 +132,8 @@ class QueryNode:
 
         self.strategy_ucb: Optional[UCB] = None
 
+        self.running_time: Optional[float] = None
+
     def set_is_unpreferred(self, criteria_chosen, unpreferred_definition) -> None:
         is_unpreferred = False
         for criterion, _ in criteria_chosen:
@@ -140,6 +151,12 @@ class QueryNode:
         score = sum(preference_score_map[criterion] for criterion, _ in self.evaluation) / len(self.evaluation)
         self.score = score
         return score
+    
+    def set_running_time(self, delta: float):
+        if isinstance(self.running_time, float):
+            self.running_time += delta
+        else:
+            self.running_time = delta
     
     def __gt__(self, other: "QueryNode"):
         return self.score > other.score
@@ -159,6 +176,7 @@ class QueryNode:
         if "product" in query_generation_extra_info:
             query_generation_extra_info["product"] = query_generation_extra_info["product"].get("product_name")
         return {
+            "query_refinement_strategy": self.query_refinement_strategy,
             "query": self.query,
             "query_generation_extra_info": query_generation_extra_info,
             "is_filtered_out": self.is_filtered_out,
@@ -168,9 +186,9 @@ class QueryNode:
             "individual_evaluations": self.individual_evaluations,
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
-            "query_refinement_strategy": self.query_refinement_strategy,
             "score": self.score,
             "strategy_ucb": self.strategy_ucb.to_dict() if isinstance(self.strategy_ucb, UCB) else None,
+            "running_time": self.running_time,
         }
 
 

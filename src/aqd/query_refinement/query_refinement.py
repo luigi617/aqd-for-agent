@@ -1,6 +1,7 @@
 import contextvars
 import random
 from collections import defaultdict, deque
+import time
 from tqdm import tqdm
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -37,11 +38,15 @@ class QueryRefinement:
 
     def _process_node(self, tree_node: TreeNode):
         query_node: QueryNode = tree_node.value
+        start_time = time.perf_counter()
+
         with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
             strategy = query_node.query_refinement_strategy
             query_node = self.filter_queries(query_node)
             pbar.update(1)
             if query_node.is_filtered_out:
+                end_time = time.perf_counter()
+                query_node.set_running_time(end_time - start_time)
                 return tree_node, []
 
             query_node = self.generate_response(query_node)
@@ -51,6 +56,9 @@ class QueryRefinement:
             query_node = self.modify_responses(query_node)
             pbar.update(1)
             query_node_score = query_node.get_score(self.config.preference_score_map)
+            
+            end_time = time.perf_counter()
+            query_node.set_running_time(end_time - start_time)
 
             if strategy is not None and tree_node.parent:
                 parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)

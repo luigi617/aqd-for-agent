@@ -53,7 +53,8 @@ def generate_response(
 
     # get response
     response = generate_response_chain(
-        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query)
+        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
+        budget_extra_info={"desc": f"Generating response for query: {query}"}
     )
 
     return response["response"]

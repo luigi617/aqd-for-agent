@@ -58,6 +58,9 @@ def run_ours(config: Config):
         prompt_search_res_json = ps.result_to_json(ps.root)
         error_save_path = save_iter_path.with_name("stopped_result.json")
         save_result(prompt_search_res_json, error_save_path)
+    
+    budget_save_path = save_iter_path.with_name("budget.json")
+    save_result(config.budget.to_dict(), budget_save_path)
 
     print(f"PROMPT OPTIMIZATION: DONE")
 
