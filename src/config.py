@@ -145,7 +145,7 @@ class Config:
 
 
     def load_old_config(self, args):
-
+        self.task = "ours"
         old_config = json.load(args.config_path.open())
 
         self.seed = old_config["seed"]
