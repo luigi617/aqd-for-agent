@@ -44,7 +44,7 @@ class PromptSearch:
             try:
                 res = query_refinement.root 
             except:
-                res = None
+                res = TreeNode(query_node)
             return e, query_node, res
 
     def _process_node(self, tree_node: TreeNode):
@@ -281,6 +281,7 @@ class PromptSearch:
                 query_node.evaluation = query_json.get("evaluation", [])
                 query_node.evaluation_reason = query_json.get("evaluation_reason", None)
                 query_node.score = query_json.get("score", None)
+                query_node.running_time = query_json.get("running_time", None)
                 strategy_ucb = query_json.get("strategy_ucb", None)
                 
                 if strategy_ucb is not None:
@@ -321,7 +322,10 @@ class PromptSearch:
             prompt_node.unpreferred_response_reason = prompt_json.get("unpreferred_response_reason", None)
             prompt_node.unpreferred_response_improvement_suggestions = prompt_json.get("unpreferred_response_improvement_suggestions", None)
             prompt_node.score = prompt_json.get("score", None)
+            prompt_node.running_time = prompt_json.get("running_time", None)
             for query_res in prompt_json.get("queries", []):
+                if not query_res:
+                    continue
                 query_tree_node = load_prev_queries(query_res)
                 prompt_node.queries.append(query_tree_node.value)
                 prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node
