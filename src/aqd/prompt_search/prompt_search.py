@@ -246,7 +246,10 @@ class PromptSearch:
         print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
     def load_prev_result(self, result: list) -> "PromptSearch":
-        product_map = {product["product_name"]: product for product in self.config.products}
+        product_map = {}
+        for product in self.config.products:
+            product_all_attributes = product["all_attributes"] if "all_attributes" in product else product
+            product_map[product["product_name"]] = product_all_attributes
 
         def load_prev_queries(query_result: list) -> Optional[TreeNode]:
             if not query_result: return None
