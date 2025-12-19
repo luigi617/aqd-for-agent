@@ -1,7 +1,9 @@
 # budget.py
+from pathlib import Path
 from threading import Lock
 from dataclasses import dataclass, field
 from typing import List
+import json
 
 
 class BudgetExceededError(RuntimeError):
@@ -61,3 +63,6 @@ class Budget:
                 f"Budget exceeded: attempted spend {delta_usd:.6f}, "
                 f"spent={self.spent_usd:.6f}, limit={self.limit_usd:.6f}"
             )
+
+    def dump(self, path: Path):
+        json.dump({'spent_usd': self.spent_usd, 'history': self.history}, path.open('w'), default=lambda o: o.__dict__, indent=4)

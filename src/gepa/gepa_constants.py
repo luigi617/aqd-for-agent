@@ -1,1 +1,0 @@
-SEED_PROMPT = "Given the fields {question}, {attributes}, produce the fields {query}."

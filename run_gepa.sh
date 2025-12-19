@@ -2,7 +2,7 @@ python3 -m src.main run \
     --task "gepa" \
     --generate_model 'gpt-5-mini' \
     --target_model 'qwen3:8b' \
-    --evaluation_models 'gpt-5-mini' 'gemini-2.5-flash' 'deepseek-reasoner' \
+    --evaluation_models 'gpt-5-mini' 'deepseek-reasoner' \
     --preferred_definition 'input_data/preferred_definition.json' \
     --unpreferred_definition 'input_data/unpreferred_definition.json' \
     --filtering_policy 'input_data/realism_definition.txt' \
@@ -14,3 +14,5 @@ python3 -m src.main run \
     --n_threads 50 \
     --budget 1000 \
     --seed 617 \
+
+# --evaluation_models 'gpt-5-mini' 'gemini-2.5-flash' 'deepseek-reasoner' \

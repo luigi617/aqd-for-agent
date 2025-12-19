@@ -24,32 +24,8 @@ Output Format:
 Return the final generated query string.
 """
 
-QUERY_GENERATION_PROMPT_BASELINE = """
-{template}
-
-Product:
-{product_name}
-
-Attributes:
-{attributes}
-
-Instructions (follow all):
-- Do NOT include overly specific product identifiers (e.g., model numbers, SKUs, GTINs).
-- Query must be limited to at most 2 of the given attributes.
-
-Output Format:
-Return the final generated list of query strings.
-"""
-
 class QueryResponseSchema(BaseModel):
     query: str = Field(description="The final generated query string.")
-
-class BaselineQueryResponseSchema(BaseModel):
-    queries: List[str] = Field(
-        min_length=30, 
-        max_length=30, 
-        description="A list of exactly 30 different generated queries about the product and its attribute"
-    )
 
 def get_random_attributes(product):
     
@@ -121,11 +97,10 @@ def generate_queries_baseline(
     Generate queries based the prompt pool with product attributes.
     Each prompt will have n_queries total after this function runs.
     """
-    query_chain = get_model(model_path, BaselineQueryResponseSchema, budget=budget)
+    query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
     
     prompt = prompt_node.prompt
     
-    generated_queries = []
     attributes = product['selected_attributes']
     attributes_str = ", ".join(attributes)
 
@@ -135,9 +110,6 @@ def generate_queries_baseline(
             product_name=product.get("product_name"),
             attributes=attributes_str,
         )
-    )['queries']
+    )['query']
     
-    generated_queries.append((new_query, product, attributes, product_idx))
-    product_idx += 1
-
-    return generated_queries
+    return new_query

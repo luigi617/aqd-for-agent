@@ -8,6 +8,7 @@ from src.aqd.query_refinement.evaluate_responses import evaluate_responses
 from src.aqd.query_refinement.generate_response import generate_response
 from src.aqd.schema import PromptNode, QueryNode
 from src.aqd.prompt_search.generate_queries import generate_queries_baseline
+from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
 import json
 from pathlib import Path
 
@@ -34,6 +35,11 @@ class EcommerceProposalFn(ProposalFn):
 class EcommerceGEPAAdapater(GEPAAdapter):
     def __init__(self, config: Config):
         self.config = config
+        self.prompt_log = []
+        self.budget_log = {}
+        self.num_prompts = 0
+        self.prompt_log_path = config.output_path.with_name('gepa_prompt_log.json')
+        self.budget_log_path = config.output_path.with_name('gepa_budget_log.json')
 
     def evaluate(
         self,
@@ -74,35 +80,81 @@ class EcommerceGEPAAdapater(GEPAAdapter):
           instance or deep-copy as needed.
         """
         outputs = []
+        scores = []
         trajectories = []
 
         print(candidate)
-        prompt_node = PromptNode(candidate)
+        new_prompt_log = None
+        for log in self.prompt_log:
+          if log['prompt'] == candidate['prompt']:
+              new_prompt_log = log
+        if not new_prompt_log:
+            new_prompt_log = {'id': self.num_prompts, 'prompt': candidate['prompt'], 'queries': []}
+            self.prompt_log.append(new_prompt_log)
+            self.num_prompts += 1
+
+        prompt_node = PromptNode(candidate['prompt'])
+
+        query_logs = []
+        num_queries = 0
 
         for example in tqdm(batch, total=len(batch), desc="Processing GEPA batch"):
-            queries = [QueryNode(query) for query in generate_queries_baseline(
+            print('generating query...')
+            query_node = QueryNode(generate_queries_baseline(
                 prompt_node,
                 self.config.generate_model,
                 self.config.budget,
                 example
-            )]
+            ), 
+            {
+              'product': example['all_attributes'],
+              'name': example['product_name'],
+              'id': example['product_id']
+            })
 
-            for query in queries:
-              query.response = generate_response(query, self.config.target_model, self.config.budget) 
+            print('generating response...')
+            query_node.response = generate_response(query_node, self.config.target_model, self.config.budget) 
 
-              chosen_criteria, reasoning, evaluations = evaluate_responses(
-                query_node = query,
-                evaluation_model_paths = self.config.evaluation_models,
-                generative_model_path = self.config.generate_model,
-                budget = self.config.budget,
-                preferred_definition = self.config.preferred_definition,
-                unpreferred_definition = self.config.unpreferred_definition
-              )
+            print('evaluating response...')
+            evaluation, reasoning, individual_evaluations = evaluate_responses(
+              query_node = query_node,
+              evaluation_model_paths = self.config.evaluation_models,
+              generative_model_path = self.config.generate_model,
+              budget = self.config.budget,
+              preferred_definition = self.config.preferred_definition,
+              unpreferred_definition = self.config.unpreferred_definition
+            )
 
-            outputs.append(evaluations)
+            query_node.evaluation = evaluation
+            query_node.evaluation_reason = reasoning
+            query_node.individual_evaluations = individual_evaluations
+            query_node.get_score(self.config.preference_score_map)
+
+            outputs.append(query_node.query)
+            scores.append(query_node.score)
             trajectories.append(reasoning)
 
-        return [trajectories, outputs]
+            # update logs
+            query_logs.append([{
+                  "id": num_queries,
+                  "query": query_node.query,
+                  "query_generation_extra_info": {
+                      'product': query_node.query_generation_extra_info['name'],
+                      'attribute': query_node.query_generation_extra_info['product'],
+                      'product_id': query_node.query_generation_extra_info['id']
+                  },
+                  'response': query_node.response,
+                  'individual_evaluations': query_node.individual_evaluations,
+                  'evaluation': query_node.evaluation,
+                  'score': query_node.score
+            }])
+            num_queries += 1
+
+        new_prompt_log['queries'].extend(query_logs)
+        json.dump(self.prompt_log, self.prompt_log_path.open('w'), indent=4)
+        self.config.budget.dump(self.budget_log_path)
+
+        return EvaluationBatch(outputs, scores, trajectories)
 
     def make_reflective_dataset(
         self,
@@ -136,20 +188,27 @@ class EcommerceGEPAAdapater(GEPAAdapter):
         Determinism
         - If you subsample trace instances, use a seeded RNG to keep runs reproducible.
         """
-        ...
+        return {
+            'Inputs': candidate,
+            'Generated Outputs': '\n'.join(eval_batch.outputs),
+            'Feedback': '\n'.join(eval_batch.trajectories)
+        }
 
     propose_new_texts: ProposalFn | None = EcommerceProposalFn
 
 def run_gepa(config: Config):
     # Load product dataset, TODO: put this in config
-    trainset = json.load(Path('input_data/product_info_1.json').open())
+    all_data = json.load(Path('input_data/product_info_1.json').open())
+    train_data = all_data[:10]
+    val_data = all_data[10:13]
 
     adapter = EcommerceGEPAAdapater(config)
 
     # GEPA optimization process
     gepa_result = optimize(
-        seed_candidate = config.initial_prompt,
-        trainset = trainset,
+        seed_candidate = {'prompt': config.initial_prompt},
+        trainset = train_data,
+        valset = val_data,
         adapter = adapter,
         max_metric_calls = 150,
         reflection_lm = config.generate_model,
