@@ -4,6 +4,7 @@ import random
 import json
 
 from dotenv import load_dotenv
+from src.ace.ace import run_ace
 from src.gepa.gepa import run_gepa
 from src.config import Config
 from src.args_parser import argument_parser
@@ -103,6 +104,8 @@ def main():
         run_pair(config)
     elif config.task == "gepa":
         run_gepa(config)
+    elif config.task == "ace":
+        run_ace(config)
     else:
         raise ValueError(f"Invalid task: {config.task}")
 
