@@ -61,7 +61,7 @@ def query_filter_feedback(
     budget: Budget,
     filtering_policy: str,
 ) -> Tuple[str, List[str], List[str]]:
-    if prompt_node.query_filter_reason != "" and prompt_node.query_filter_improvement_suggestions != "":
+    if prompt_node.query_filter_reason is not None and prompt_node.query_filter_improvement_suggestions is not None:
         return prompt_node.query_filter_reason, prompt_node.query_filter_improvement_suggestions
     
     query_filtering_chain = get_model(model_path, QueryFilterFeedbackSchema, budget=budget)
@@ -74,7 +74,8 @@ def query_filter_feedback(
             current_prompts=prompt, 
             filtered_out_queries=filtered_out_queries,
             filtering_policy=filtering_policy
-        )
+        ),
+        budget_extra_info={"desc": f"Get query filter feedback"}
     )
 
     return query_filtering_feedback["reasoning"], query_filtering_feedback["improvement_suggestions"]

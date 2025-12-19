@@ -11,13 +11,18 @@ class PromptNode:
 
         self.query_refinement_map: Dict[QueryNode, TreeNode] = {}
 
-        self.query_filter_reason: str = ""
-        self.query_filter_improvement_suggestions: str = ""
+        self.query_filter_reason: Optional[str] = None
+        self.query_filter_improvement_suggestions: Optional[str] = None
 
-        self.unpreferred_response_reason: str = ""
-        self.unpreferred_response_improvement_suggestions: str = ""
+        self.unpreferred_response_reason: Optional[str] = None
+        self.unpreferred_response_improvement_suggestions: Optional[str] = None
+
+        self.preferred_response_reason: Optional[str] = None
+        self.preferred_response_improvement_suggestions: Optional[str] = None
 
         self.score: Optional[float] = None
+
+        self.running_time: Optional[float] = None
 
 
     def to_dict(self) -> dict:
@@ -30,17 +35,27 @@ class PromptNode:
             "query_filter_reason": self.query_filter_reason,
             "query_filter_improvement_suggestions": self.query_filter_improvement_suggestions,
 
+            "preferred_response_reason": self.preferred_response_reason,
+            "preferred_response_improvement_suggestions": self.preferred_response_improvement_suggestions,
+
             "unpreferred_response_reason": self.unpreferred_response_reason,
             "unpreferred_response_improvement_suggestions": self.unpreferred_response_improvement_suggestions,
-            "score": self.score
+            "score": self.score,
+            "running_time": self.running_time,
         }
     
     @property
     def is_selected(self):
-        return self.query_filter_reason != "" or \
-            self.query_filter_reason != "" or \
-                self.query_filter_reason != "" or \
-                self.query_filter_reason != ""
+        return self.query_filter_reason is not None or \
+            self.unpreferred_response_reason is not None or \
+            self.preferred_response_reason is not None
+    
+    def set_running_time(self, delta: float):
+        if isinstance(self.running_time, float):
+            self.running_time += delta
+        else:
+            self.running_time = delta
+            
     
     def query_to_json(self, query_tree_node: "TreeNode"):
         if not query_tree_node: return []
@@ -68,7 +83,7 @@ class PromptNode:
             stack = [query_tree_node]
             while stack:
                 cur_query_tree_node = stack.pop()
-                cur_query_node = cur_query_tree_node.value
+                cur_query_node: QueryNode = cur_query_tree_node.value
                 if not cur_query_node.is_filtered_out:
                     query_score = cur_query_node.get_score(preference_score_map)
                     if query_score is not None:
@@ -100,21 +115,24 @@ class QueryNode:
         
         self.query: str = query
         
-        self.is_filtered_out: bool = False
-        self.filtering_reason: str = ""
+        self.is_filtered_out: Optional[bool] = None
+        self.filtering_reason: Optional[str] = None
+        self.filtering_confidence_score: Optional[float] = None
         
-        self.response: str = ""
+        self.response: Optional[str] = None
 
         self.individual_evaluations: List[Any] = []
 
         self.evaluation: List[Tuple[str, str]] = []
-        self.evaluation_reason: str = ""
+        self.evaluation_reason: Optional[str] = None
 
         self.is_unpreferred: Optional[bool] = None
 
         self.score: Optional[float] = None
 
         self.strategy_ucb: Optional[UCB] = None
+
+        self.running_time: Optional[float] = None
 
     def set_is_unpreferred(self, criteria_chosen, unpreferred_definition) -> None:
         is_unpreferred = False
@@ -134,6 +152,12 @@ class QueryNode:
         self.score = score
         return score
     
+    def set_running_time(self, delta: float):
+        if isinstance(self.running_time, float):
+            self.running_time += delta
+        else:
+            self.running_time = delta
+    
     def __gt__(self, other: "QueryNode"):
         return self.score > other.score
     
@@ -152,17 +176,19 @@ class QueryNode:
         if "product" in query_generation_extra_info:
             query_generation_extra_info["product"] = query_generation_extra_info["product"].get("product_name")
         return {
+            "query_refinement_strategy": self.query_refinement_strategy,
             "query": self.query,
             "query_generation_extra_info": query_generation_extra_info,
             "is_filtered_out": self.is_filtered_out,
             "filtering_reason": self.filtering_reason,
+            "filtering_confidence_score": self.filtering_confidence_score,
             "response": self.response,
             "individual_evaluations": self.individual_evaluations,
             "evaluation": [list(ev) for ev in self.evaluation],
             "evaluation_reason": self.evaluation_reason,
-            "query_refinement_strategy": self.query_refinement_strategy,
             "score": self.score,
             "strategy_ucb": self.strategy_ucb.to_dict() if isinstance(self.strategy_ucb, UCB) else None,
+            "running_time": self.running_time,
         }
 
 
