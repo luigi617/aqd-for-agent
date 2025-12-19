@@ -41,7 +41,8 @@ def filter_queries(
         FILTER_QUERY_PROMPT.format(
             query=query,
             filtering_policy=filtering_policy
-        )
+        ),
+        budget_extra_info={"desc": f"Filtering query: {query}"}
     )
     
     return decision['satisfy_filter'], decision['reasoning'], decision['confidence_score']

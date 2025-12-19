@@ -1,8 +1,9 @@
-import contextvars
+
 import random
-from collections import defaultdict, deque
+from collections import defaultdict
+import time
 from tqdm import tqdm
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.aqd.ucb import UCB
@@ -26,18 +27,10 @@ class QueryRefinement:
         else:
             self.root: TreeNode = TreeNode(query_node)
         
-        self.strategies_max_apply_num_count = self.config.strategies_max_apply_num_count.copy()
-        stack = [self.root]
-        while stack:
-            query_tree_node = stack.pop()
-            strategy = query_tree_node.value.query_refinement_strategy
-            if strategy in self.strategies_max_apply_num_count:
-                self.strategies_max_apply_num_count[strategy] -= 1
-            stack.extend(query_tree_node.children)
             
         if self.root.value.strategy_ucb is None:
             self.root.value.strategy_ucb = UCB(
-                arms=self.config.query_refinement_strategies,
+                arms=list(self.config.query_refinement_strategies.keys()),
                 variant="ucb1",
                 epsilon=0.10,
             )
@@ -45,11 +38,15 @@ class QueryRefinement:
 
     def _process_node(self, tree_node: TreeNode):
         query_node: QueryNode = tree_node.value
+        start_time = time.perf_counter()
+
         with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
             strategy = query_node.query_refinement_strategy
             query_node = self.filter_queries(query_node)
             pbar.update(1)
             if query_node.is_filtered_out:
+                end_time = time.perf_counter()
+                query_node.set_running_time(end_time - start_time)
                 return tree_node, []
 
             query_node = self.generate_response(query_node)
@@ -59,6 +56,9 @@ class QueryRefinement:
             query_node = self.modify_responses(query_node)
             pbar.update(1)
             query_node_score = query_node.get_score(self.config.preference_score_map)
+            
+            end_time = time.perf_counter()
+            query_node.set_running_time(end_time - start_time)
 
             if strategy is not None and tree_node.parent:
                 parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)
@@ -144,7 +144,26 @@ class QueryRefinement:
     
     def refine_query(self, tree_node: TreeNode) -> List[QueryNode]:
         strategy_used = [child_tree_node.value.query_refinement_strategy for child_tree_node in tree_node.children]
-        strategy_not_allowed = [strategy for strategy, count in self.strategies_max_apply_num_count.items() if count <= 0]
+        
+        current_strategy_apply_count = defaultdict(int)
+        strategy_mutex_group = set()
+        cur_qtn = tree_node
+        while cur_qtn:
+            strategy = cur_qtn.value.query_refinement_strategy
+            if strategy is None: break
+            mutex_group = self.config.query_refinement_strategies[strategy]["mutex_group"]
+            if mutex_group is not None:
+                strategy_mutex_group.add(mutex_group)
+            current_strategy_apply_count[strategy] += 1
+            cur_qtn = cur_qtn.parent
+
+        strategy_not_allowed = []
+        for strategy, info in self.config.query_refinement_strategies.items():
+            if current_strategy_apply_count[strategy] >= info["max_apply_num"]:
+                strategy_not_allowed.append(strategy)
+            if info["mutex_group"] in strategy_mutex_group:
+                strategy_not_allowed.append(strategy)
+
         strategies_ignored = list(set(strategy_used + strategy_not_allowed))
 
         strategy_size = 3
@@ -159,13 +178,12 @@ class QueryRefinement:
             self.config.refinement_model,
             self.config.budget,
             strategy_to_be_used,
-            self.config.strategies_prompt_map,
+            self.config.query_refinement_strategies,
         )
         next_query_nodes = []
         for query, strategy in proposed_queries:
             new_query_node = QueryNode(query, query_generation_extra_info=query_node.query_generation_extra_info, query_refinement_strategy=strategy)
             next_query_nodes.append(new_query_node)
-            self.strategies_max_apply_num_count[strategy] -= 1
         return next_query_nodes
     
     def _prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:

@@ -2,6 +2,7 @@
 import os
 import random
 import json
+import traceback
 
 from dotenv import load_dotenv
 from src.config import Config
@@ -54,10 +55,14 @@ def run_ours(config: Config):
 
         print("Spent:", config.budget.spent_usd, "remaining:", config.budget.remaining_usd)
     except Exception as e:
-        print("Pipeline stopped:", e)
+        error_text = traceback.format_exc()
+        print("Error during pipeline execution:", error_text)
         prompt_search_res_json = ps.result_to_json(ps.root)
         error_save_path = save_iter_path.with_name("stopped_result.json")
         save_result(prompt_search_res_json, error_save_path)
+    
+    budget_save_path = save_iter_path.with_name("budget.json")
+    save_result(config.budget.to_dict(), budget_save_path)
 
     print(f"PROMPT OPTIMIZATION: DONE")
 

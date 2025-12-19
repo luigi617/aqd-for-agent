@@ -2,6 +2,7 @@ import json
 import os
 import random
 import threading
+import time
 from typing import List, Optional
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -43,12 +44,12 @@ class PromptSearch:
             try:
                 res = query_refinement.root 
             except:
-                res = None
+                res = TreeNode(query_node)
             return e, query_node, res
 
     def _process_node(self, tree_node: TreeNode):
         prompt_node: PromptNode = tree_node.value
-        
+        start_time = time.perf_counter()
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
             prompt_node = self.generate_queries(prompt_node)
             pbar.update(1)
@@ -67,6 +68,8 @@ class PromptSearch:
             pbar.update(1)
         
             prompt_node.get_score(self.config.preference_score_map)
+            end_time = time.perf_counter()
+            prompt_node.set_running_time(end_time - start_time)
         print("Prompt node budget: Spent:", self.config.budget.spent_usd, "remaining:", self.config.budget.remaining_usd)
         return tree_node
     
@@ -246,7 +249,10 @@ class PromptSearch:
         print(f"Save prompt search result: depth {depth}, to {save_depth_path}")
 
     def load_prev_result(self, result: list) -> "PromptSearch":
-        product_map = {product["product_name"]: product for product in self.config.products}
+        product_map = {}
+        for product in self.config.products:
+            product_all_attributes = product["all_attributes"] if "all_attributes" in product else product
+            product_map[product["product_name"]] = product_all_attributes
 
         def load_prev_queries(query_result: list) -> Optional[TreeNode]:
             if not query_result: return None
@@ -275,11 +281,12 @@ class PromptSearch:
                 query_node.evaluation = query_json.get("evaluation", [])
                 query_node.evaluation_reason = query_json.get("evaluation_reason", None)
                 query_node.score = query_json.get("score", None)
+                query_node.running_time = query_json.get("running_time", None)
                 strategy_ucb = query_json.get("strategy_ucb", None)
                 
                 if strategy_ucb is not None:
                     query_node.strategy_ucb = UCB(
-                        arms = self.config.query_refinement_strategies,
+                        arms = list(self.config.query_refinement_strategies.keys()),
                         variant = strategy_ucb["variant"],
                         epsilon = strategy_ucb["epsilon"]
                     )
@@ -315,7 +322,10 @@ class PromptSearch:
             prompt_node.unpreferred_response_reason = prompt_json.get("unpreferred_response_reason", None)
             prompt_node.unpreferred_response_improvement_suggestions = prompt_json.get("unpreferred_response_improvement_suggestions", None)
             prompt_node.score = prompt_json.get("score", None)
+            prompt_node.running_time = prompt_json.get("running_time", None)
             for query_res in prompt_json.get("queries", []):
+                if not query_res:
+                    continue
                 query_tree_node = load_prev_queries(query_res)
                 prompt_node.queries.append(query_tree_node.value)
                 prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node

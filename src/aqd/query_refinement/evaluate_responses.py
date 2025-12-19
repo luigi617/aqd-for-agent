@@ -149,7 +149,8 @@ def evaluate_responses(
                     query=query,
                     response=response,
                     criteria=preference_criteria_str,
-                )
+                ),
+                budget_extra_info={"desc": f"Evaluate response: {response}"}
             )
             evaluations.append(evaluation)
 
@@ -176,7 +177,8 @@ def evaluate_responses(
         MERGE_REASONING_PROMPT.format(
             final_criteria=final_selected_criteria_str,
             explanations=all_reasoning,
-        )
+        ),
+        budget_extra_info={"desc": f"Merge evaluation reasoning"}
     )["reasoning"]
 
 
