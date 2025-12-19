@@ -1,9 +1,9 @@
 from typing import List, Tuple
 from pydantic import BaseModel, Field
 
-from aqd.budget import Budget
-from aqd.schema import PromptNode
-from models.model import get_model
+from src.aqd.budget import Budget
+from src.aqd.schema import PromptNode
+from src.models.model import get_model
 
 
 REFLECTIVE_STRATEGY_REFINEMENT_PROMPT = """
@@ -75,23 +75,17 @@ def refine_prompt(
     preferred_definition: dict,
     unpreferred_definition: dict,
     previous_prompts: list,
-    used_strategy: list,
-) -> List[Tuple[str, str]]:
+) -> str:
     
     reflect_chain = get_model(model_path, ReflectResponseSchema, budget=budget)
 
     prompt = prompt_node.prompt
-
-
-    filter_feedback_reason = prompt_node.query_filter_reason
-    filter_feedback_improvement_suggestions = prompt_node.query_filter_improvement_suggestions
 
     unpreferred_feedback_reason = prompt_node.unpreferred_response_reason
     unpreferred_feedback_improvement_suggestions = prompt_node.unpreferred_response_improvement_suggestions
 
     preferred_definition_str = get_preference_definition_str(preferred_definition)
     unpreferred_definition_str = get_preference_definition_str(unpreferred_definition)
-    
 
     proposed_prompts = []
 
@@ -100,15 +94,10 @@ def refine_prompt(
             current_prompt = prompt,
             preferred_definition = preferred_definition_str,
             unpreferred_definition = unpreferred_definition_str,
-            filtering_policy = filtering_policy,
-            filter_feedback_reasoning = filter_feedback_reason,
-            filter_feedback_improvement_suggestions = filter_feedback_improvement_suggestions,
             unpreferred_feedback_reasoning = unpreferred_feedback_reason,
             unpreferred_feedback_improvement_suggestions = unpreferred_feedback_improvement_suggestions,
             prev_prompts = get_previous_prompts(previous_prompts + proposed_prompts),
         )
     )
-
-    proposed_prompts.append((new_prompt['new_prompts'], new_prompt["reflection"], "strategy_refinement"))
     
-    return proposed_prompts
+    return new_prompt['new_prompt']
