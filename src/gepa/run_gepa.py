@@ -220,8 +220,8 @@ def run_gepa(config: Config):
 
     def stop_callback(gepa_state: GEPAState) -> bool:
         if (gepa_state.i+1) > config.n_prompt_refinement_iterations:
-            return False
-        return True
+            return True
+        return False
 
     # GEPA optimization process
     gepa_result = optimize(
