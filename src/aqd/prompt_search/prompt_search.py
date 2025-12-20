@@ -34,7 +34,7 @@ class PromptSearch:
                 query_tree_node=query_tree_node,
                 config=self.config
             )
-            query_node_res = query_refinement.run(max_depth=self.config.n_query_refinemnet_iterations,
+            query_node_res = query_refinement.run(max_depth=self.config.n_query_refinement_iterations,
                                                     n_workers=self.config.n_thread_query_refiment)
             return None, query_node, query_node_res
         except Exception as e:
@@ -175,7 +175,7 @@ class PromptSearch:
         selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if ptn.value.is_selected]
         not_selected_tree_nodes = [ptn for ptn in prompt_tree_nodes if not ptn.value.is_selected]
 
-        beam = self.config.n_prompt_refinemnet_beam_search_size
+        beam = self.config.n_prompt_refinement_beam_search_size
 
         if len(selected_tree_nodes) >= beam:
             return selected_tree_nodes

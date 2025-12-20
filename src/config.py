@@ -110,9 +110,9 @@ class Config:
         self.strategies_prompt_map = strategy_info[2]
 
         self.n_queries = args.n_queries
-        self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
-        self.n_prompt_refinemnet_beam_search_size = args.n_prompt_refinemnet_beam_search_size
-        self.n_query_refinemnet_iterations = args.n_query_refinemnet_iterations
+        self.n_prompt_refinement_iterations = args.n_prompt_refinement_iterations
+        self.n_prompt_refinement_beam_search_size = args.n_prompt_refinement_beam_search_size
+        self.n_query_refinement_iterations = args.n_query_refinement_iterations
         self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
 
         # divide threads into different place
@@ -135,13 +135,8 @@ class Config:
 
         self.output_path = args.output_path
 
-        # Tree of Attack with Pruning arguments
-        self.max_depth = args.max_depth
-        self.max_width = args.max_width
-        self.n_branching_factor = args.n_branching_factor
-
-
     def load_old_config(self, args):
+        self.task = args.task
 
         old_config = json.load(args.config_path.open())
 
@@ -172,9 +167,9 @@ class Config:
         self.strategies_prompt_map = strategy_info[2]
 
         self.n_queries = old_config["n_queries"]
-        self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
-        self.n_prompt_refinemnet_beam_search_size = old_config["n_prompt_refinemnet_beam_search_size"]
-        self.n_query_refinemnet_iterations = old_config["n_query_refinemnet_iterations"]
+        self.n_prompt_refinement_iterations = old_config["n_prompt_refinement_iterations"]
+        self.n_prompt_refinement_beam_search_size = old_config["n_prompt_refinement_beam_search_size"]
+        self.n_query_refinement_iterations = old_config["n_query_refinement_iterations"]
         self.n_query_refiment_beam_search_size = old_config["n_query_refiment_beam_search_size"]
 
         # divide threads into different place
@@ -206,9 +201,9 @@ class Config:
             "unpreferred_definition": self.original_unpreferred_definition,
             "query_refinement_strategies": self.original_query_refinement_strategies,
             "n_queries": self.n_queries,
-            "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
-            "n_prompt_refinemnet_beam_search_size": self.n_prompt_refinemnet_beam_search_size,
-            "n_query_refinemnet_iterations": self.n_query_refinemnet_iterations,
+            "n_prompt_refinement_iterations": self.n_prompt_refinement_iterations,
+            "n_prompt_refinement_beam_search_size": self.n_prompt_refinement_beam_search_size,
+            "n_query_refinement_iterations": self.n_query_refinement_iterations,
             "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
             "n_threads": self.n_threads,
             "n_thread_prompt_refiment": self.n_thread_prompt_refiment,
