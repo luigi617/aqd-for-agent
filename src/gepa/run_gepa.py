@@ -219,7 +219,7 @@ def run_gepa(config: Config):
         adapter = EcommerceGEPAAdapater(config)
 
     def stop_callback(gepa_state: GEPAState) -> bool:
-        if gepa_state.i > config.n_prompt_refinement_iterations:
+        if (gepa_state.i+1) > config.n_prompt_refinement_iterations:
             return False
         return True
 
@@ -232,7 +232,7 @@ def run_gepa(config: Config):
         stop_callbacks=stop_callback,
         reflection_lm = config.generate_model,
         reflection_minibatch_size = n//4,
-        run_dir = config.prev_result.parent if config.prev_result else None,
+        run_dir = config.output_path.parent if config.prev_result else None,
     )
 
     print(f'{config.n_prompt_refinement_iterations} Iterations reached... terminating')
