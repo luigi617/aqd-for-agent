@@ -9,9 +9,9 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from src.config import Config
 from ..prompts.curator import CURATOR_PROMPT, CURATOR_PROMPT_NO_GT
-from playbook_utils import extract_json_from_text, apply_curator_operations
-from logger import log_curator_operation_diff, log_curator_failure
-from llm import timed_llm_call
+from src.ace.playbook_utils import extract_json_from_text, apply_curator_operations
+from src.ace.logger import log_curator_operation_diff, log_curator_failure
+from src.ace.llm import timed_llm_call
 
 class Curator:
     """

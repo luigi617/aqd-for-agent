@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from src.config import Config
 from ..prompts.generator import GENERATOR_PROMPT
-from llm import timed_llm_call
+from src.ace.llm import timed_llm_call
 import openai
 
 class Generator:

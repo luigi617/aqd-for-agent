@@ -9,7 +9,7 @@ This file contains functions for logging various events and information during t
 import os
 import json
 from datetime import datetime
-from playbook_utils import parse_playbook_line
+from src.ace.playbook_utils import parse_playbook_line
 
 
 def log_llm_call(log_dir, call_info):
@@ -29,7 +29,7 @@ def log_llm_call(log_dir, call_info):
     
     print(f"[LOG] {call_info['role']} call logged to {filename}")
 
-def log_bullet_usage(usage_log_path, epoch, step, sample_data, bullet_ids_used, playbook=None, reflection_content=None, is_correct=None):
+def log_bullet_usage(usage_log_path, epoch, step, sample_data, bullet_ids_used, playbook=None, reflection_content=None, score=None):
     """Log which bullets were used in each training sample for future curator reference
     
     TODO: Future curator enhancement - when updating a bullet, the curator can:
@@ -70,7 +70,7 @@ def log_bullet_usage(usage_log_path, epoch, step, sample_data, bullet_ids_used, 
         "sample_id": f"epoch_{epoch}_step_{step}",
         "bullet_ids_used": bullet_ids_used,
         "bullets_with_content": bullets_with_content,
-        "is_correct": is_correct,  # Only record accuracy for initial trials
+        "score": score,  # Only record accuracy for initial trials
         "sample_context": sample_data.get("context", "")[:500] if sample_data else "",  # First 500 chars
         "sample_question": sample_data.get("question", "")[:200] if sample_data else "",  # First 200 chars  
         "reflection_summary": reflection_content[:300] if reflection_content else None,  # First 300 chars

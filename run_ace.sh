@@ -1,18 +1,16 @@
 python3 -m src.main run \
     --task "ace" \
-    --generate_model 'qwen3:8b' \
-    --target_model 'qwen3:8b' \
-    --evaluation_models 'qwen3:8b' \
+    --generate_model 'gpt-5-nano' \
+    --target_model 'gpt-5-nano' \
+    --evaluation_models 'gpt-5-nano' \
     --preferred_definition 'input_data/preferred_definition.json' \
     --unpreferred_definition 'input_data/unpreferred_definition.json' \
     --filtering_policy 'input_data/realism_definition.txt' \
-    --query_refinement_strategies 'input_data/query_refinement_strategies.json' \
-    --init_prompt 'input_data/seed_prompts.json' \
-    --products 'input_data/product_info_1.json' \
+    --init_prompt 'input_data/init_prompt.json' \
+    --products 'input_data/product_info_test.json' \
     --output_path 'output_data/ace/results.json' \
-    --n_queries 100 \
+    --n_prompt_refinemnet_iterations 1 \
+    --n_queries 1 \
     --n_threads 20 \
     --budget 1000 \
     --seed 617 \
-
-# --evaluation_models 'gpt-5-mini' 'gemini-2.5-flash' 'deepseek-reasoner' \

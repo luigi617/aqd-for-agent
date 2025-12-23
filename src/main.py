@@ -4,9 +4,10 @@ import random
 import json
 import traceback
 
+from src.ace.run import run_ace
 from dotenv import load_dotenv
 from src.ace.ace import ACE
-from src.gepa.gepa import run_gepa
+# from src.gepa.gepa import run_gepa
 from src.config import Config
 from src.args_parser import argument_parser
 from src.aqd.prompt_search.prompt_search import PromptSearch
@@ -86,17 +87,9 @@ def run_tap(config: Config):
     print(f"Tree of Attack with Pruning: DONE")
 
 
-
 def run_pair(config: Config):
     raise NotImplementedError("Pair is not implemented yet")
 
-def run_ace(config: Config):
-    print(f"ACE: START")
-    ace = ACE(config=config)
-    ace_res = ace.run()
-    ace_res_json = ace.result_to_json(ace_res)
-    save_result(ace_res_json, config.output_path)
-    print(f"ACE: DONE")
 
 def main():
     load_dotenv(override=True)
@@ -115,8 +108,8 @@ def main():
         run_tap(config)
     elif config.task == "pair":
         run_pair(config)
-    elif config.task == "gepa":
-        run_gepa(config)
+    # elif config.task == "gepa":
+        # run_gepa(config)
     elif config.task == "ace":
         run_ace(config)
     else:
