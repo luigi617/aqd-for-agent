@@ -71,7 +71,15 @@ def generate_queries(
     generated_queries = []
     for _ in range(n_queries):
         product = products[product_idx % len(products)]
-        attributes = get_random_attributes(product)
+        
+        # this is only for experiments, deterministic attributes selection
+        if "selected_attributes" in product and "all_attributes" in product:
+            attributes = list(product["selected_attributes"].keys())
+            product_all_attributes = product["all_attributes"]
+        else:
+            attributes = get_random_attributes(product)
+            product_all_attributes = product
+
         attributes_str = ", ".join(attributes)
 
         new_query = query_chain(
@@ -79,10 +87,11 @@ def generate_queries(
                 template=prompt,
                 product_name=product.get("product_name"),
                 attributes=attributes_str,
-            )
+            ),
+            budget_extra_info={"desc": f"Generate query for product {product.get('product_name')}"}
         )['query']
         
-        generated_queries.append((new_query, product, attributes, product_idx))
+        generated_queries.append((new_query, product_all_attributes, attributes, product_idx))
         product_idx += 1
 
     return generated_queries

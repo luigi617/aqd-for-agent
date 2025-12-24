@@ -15,12 +15,13 @@ Filtering policy:
 {filtering_policy}
 
 Output Format:
-Return the reasoning that explains whether the query satisfies the filtering policy, followed by the boolean value True if the query satisfies the filtering policy, and False otherwise.
+Return the reasoning that explains whether the query satisfies the filtering policy, followed by the boolean value True if the query satisfies the filtering policy, and False otherwise. Finally, provide a confidence score between 0 and 1 indicating the confidence in your filtering decision.
 """
 
 class FilteredQuerySchema(BaseModel):
     reasoning: str = Field(description="reasoning behind the query satisfing or not satisfying the filtering policy.")
     satisfy_filter: bool = Field(description="True if the query satisfies the filtering policy, False otherwise.")
+    confidence_score: float = Field(description="A confidence score between 0 and 1 indicating the confidence in the filtering decision.")
 
 def filter_queries(
         query_node: QueryNode,
@@ -31,8 +32,8 @@ def filter_queries(
     """
     Filters queries based on filtering policy definition.
     """
-    if query_node.filtering_reason != "":
-        return not query_node.is_filtered_out, query_node.filtering_reason
+    if query_node.is_filtered_out is not None and query_node.filtering_reason is not None and query_node.filtering_confidence_score is not None:
+        return not query_node.is_filtered_out, query_node.filtering_reason, query_node.filtering_confidence_score
     filter_query_chain = get_model(model_path, FilteredQuerySchema, retries=3, budget=budget)
 
     query = query_node.query
@@ -40,7 +41,8 @@ def filter_queries(
         FILTER_QUERY_PROMPT.format(
             query=query,
             filtering_policy=filtering_policy
-        )
+        ),
+        budget_extra_info={"desc": f"Filtering query: {query}"}
     )
     
-    return decision['satisfy_filter'], decision['reasoning']
+    return decision['satisfy_filter'], decision['reasoning'], decision['confidence_score']

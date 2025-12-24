@@ -127,7 +127,7 @@ def evaluate_responses(
     """
     Evaluate response
     """
-    if query_node.evaluation and query_node.evaluation_reason != "" and query_node.individual_evaluations:
+    if query_node.evaluation and query_node.evaluation_reason is not None and query_node.individual_evaluations:
         return query_node.evaluation, query_node.evaluation_reason, query_node.individual_evaluations
     
     preference_criteria_map = get_preference_criteria_map(preferred_definition, unpreferred_definition)
@@ -149,7 +149,8 @@ def evaluate_responses(
                     query=query,
                     response=response,
                     criteria=preference_criteria_str,
-                )
+                ),
+                budget_extra_info={"desc": f"Evaluate response: {response}"}
             )
             evaluations.append(evaluation)
 
@@ -176,7 +177,8 @@ def evaluate_responses(
         MERGE_REASONING_PROMPT.format(
             final_criteria=final_selected_criteria_str,
             explanations=all_reasoning,
-        )
+        ),
+        budget_extra_info={"desc": f"Merge evaluation reasoning"}
     )["reasoning"]
 
 

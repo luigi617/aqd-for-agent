@@ -7,38 +7,47 @@ from src.aqd.budget import Budget
 DEFAULT_QUERY_REFINEMENT_STRATEGIES = [
     {
         "description": "Choose at most two words in the sentence, and change them so that they have typos.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Change at most two letters in the sentence.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Add at most two extraneous characters to the end of the sentence.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Replace at most two words in the sentence with synonyms.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Choose at most two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Add at most two semantically neutral words to the sentence.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Paraphrase the sentence.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     },
     {
         "description": "Change the syntactic structure of the sentence.",
+        "prompt_name": "perturbation",
         "max_apply_num": 1000
     }
 ]
@@ -53,14 +62,15 @@ class Config:
     
     @staticmethod
     def get_strategy_info(query_refinement_strategies):
-        strategies = []
-        strategies_prompt_map = {}
-        strategies_max_apply_num_count = {}
+        strategies = {}
+        
         for strategy_info in query_refinement_strategies:
-            strategies.append(strategy_info["description"])
-            strategies_prompt_map[strategy_info["description"]] = strategy_info["prompt_name"]
-            strategies_max_apply_num_count[strategy_info["description"]] = strategy_info["max_apply_num"]
-        return strategies, strategies_max_apply_num_count, strategies_prompt_map
+            desc = strategy_info["description"]
+            strategies[desc] = {}
+            strategies[desc]["prompt_name"] = strategy_info["prompt_name"]
+            strategies[desc]["max_apply_num"] = strategy_info.get("max_apply_num", 1000)
+            strategies[desc]["mutex_group"] = strategy_info.get("mutex_group", None)
+        return strategies
     
     @staticmethod
     def get_preference_info(preferred_definition, unpreferred_definition):
@@ -104,10 +114,7 @@ class Config:
         else:
             self.original_query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
         
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = args.n_queries
         self.n_prompt_refinement_iterations = args.n_prompt_refinement_iterations
@@ -161,10 +168,7 @@ class Config:
         self.preference_score_map = preference_info[2]
         
         self.original_query_refinement_strategies = old_config["query_refinement_strategies"]
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = old_config["n_queries"]
         self.n_prompt_refinement_iterations = old_config["n_prompt_refinement_iterations"]

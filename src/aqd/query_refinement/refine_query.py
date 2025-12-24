@@ -89,22 +89,22 @@ def refine_query(
     proposed_queries = []
     for strategy in query_refinement_strategies:
         strategy_prompt = None
-        if strategy_prompt_map[strategy] == "perturbation":
+        if strategy_prompt_map[strategy]["prompt_name"] == "perturbation":
             strategy_prompt = QUERY_PERTURBATION_PROMPT.format(
                 current_query=query,
                 strategy=strategy,
             )
-        elif strategy_prompt_map[strategy] == "profile":
+        elif strategy_prompt_map[strategy]["prompt_name"] == "profile":
             strategy_prompt = QUERY_PROFILE_PROMPT.format(
                 current_query=query,
                 profile=strategy,
             )
-        elif strategy_prompt_map[strategy] == "scenario":
+        elif strategy_prompt_map[strategy]["prompt_name"] == "scenario":
             strategy_prompt = QUERY_SCENARIO_PROMPT.format(
                 current_query=query,
                 scenario=strategy,
             )
-        elif strategy_prompt_map[strategy] == "tone":
+        elif strategy_prompt_map[strategy]["prompt_name"] == "tone":
             strategy_prompt = QUERY_TONE_PROMPT.format(
                 current_query=query,
                 tone=strategy,
@@ -114,7 +114,10 @@ def refine_query(
         if not strategy_prompt:
             raise Exception("strategy not recognized")
         
-        refinement = refine_query_chain(strategy_prompt)
+        refinement = refine_query_chain(
+            strategy_prompt,
+            budget_extra_info={"desc": f"Refine query ({query}) for strategy: {strategy}"}
+        )
         proposed_queries.append((refinement["query"], strategy))
 
 

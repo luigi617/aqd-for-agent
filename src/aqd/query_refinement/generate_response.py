@@ -39,7 +39,7 @@ def generate_response(
     """
     Generate response
     """
-    if query_node.response != "":
+    if query_node.response is not None:
         return query_node.response
 
     generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
@@ -53,7 +53,8 @@ def generate_response(
 
     # get response
     response = generate_response_chain(
-        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query)
+        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
+        budget_extra_info={"desc": f"Generating response for query: {query}"}
     )
 
     return response["response"]
