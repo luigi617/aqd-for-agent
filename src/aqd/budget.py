@@ -2,7 +2,6 @@
 from pathlib import Path
 from threading import Lock
 from dataclasses import dataclass, field
-from typing import List
 import json
 from typing import Any, List
 

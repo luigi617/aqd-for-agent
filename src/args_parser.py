@@ -12,7 +12,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--task",
         type=str,
         help="task to run",
-        required=True,
+        required=False,
         choices=["ours", "tap", "pair", "gepa"],
         default="ours",
     )
@@ -167,7 +167,7 @@ def argument_parser() -> Config:
         "--task",
         type=str,
         help="task to run",
-        required=True,
+        required=False,
         choices=["ours", "tap", "pair", "gepa"],
         default="ours",
     )
