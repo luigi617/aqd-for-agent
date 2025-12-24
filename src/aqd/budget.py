@@ -1,6 +1,9 @@
 # budget.py
+from pathlib import Path
 from threading import Lock
 from dataclasses import dataclass, field
+from typing import List
+import json
 from typing import Any, List
 
 
@@ -55,6 +58,16 @@ class Budget:
                 return False
             self.spent_usd = new_total
             return True
+        
+    # functions for pickle
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state["_lock"] 
+        return state
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._lock = Lock()
 
     def add_or_raise(self,
                      delta_usd: float,
@@ -73,6 +86,11 @@ class Budget:
                 f"Budget exceeded: attempted spend {delta_usd:.6f}, "
                 f"spent={self.spent_usd:.6f}, limit={self.limit_usd:.6f}"
             )
+
+    def dump(self, path: Path):
+        with open(path, 'w') as f:
+            # use default to save TokenUsage object even though it's not JSON serializable
+            json.dump({'spent_usd': self.spent_usd, 'history': self.history}, f, default=lambda o: o.__dict__, indent=4)
         
     def to_dict(self):
         return {

@@ -5,6 +5,7 @@ import json
 import traceback
 
 from dotenv import load_dotenv
+from src.gepa.run_gepa import run_gepa
 from src.config import Config
 from src.args_parser import argument_parser
 from src.aqd.prompt_search.prompt_search import PromptSearch
@@ -48,7 +49,7 @@ def run_ours(config: Config):
         )
         if config.prev_result:
             ps.load_prev_result(config.prev_result)
-        prompt_search_res = ps.run(max_depth=config.n_prompt_refinemnet_iterations)
+        prompt_search_res = ps.run(max_depth=config.n_prompt_refinement_iterations)
         prompt_search_res_json = ps.result_to_json(prompt_search_res)
         
         save_result(prompt_search_res_json, config.output_path)
@@ -105,6 +106,8 @@ def main():
         run_tap(config)
     elif config.task == "pair":
         run_pair(config)
+    elif config.task == "gepa":
+        run_gepa(config)
     else:
         raise ValueError(f"Invalid task: {config.task}")
 

@@ -117,9 +117,9 @@ class Config:
         self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = args.n_queries
-        self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
-        self.n_prompt_refinemnet_beam_search_size = args.n_prompt_refinemnet_beam_search_size
-        self.n_query_refinemnet_iterations = args.n_query_refinemnet_iterations
+        self.n_prompt_refinement_iterations = args.n_prompt_refinement_iterations
+        self.n_prompt_refinement_beam_search_size = args.n_prompt_refinement_beam_search_size
+        self.n_query_refinement_iterations = args.n_query_refinement_iterations
         self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
 
         # divide threads into different place
@@ -142,10 +142,9 @@ class Config:
 
         self.output_path = args.output_path
 
-
-
     def load_old_config(self, args):
-        self.task = "ours"
+        self.task = args.task
+
         old_config = json.load(args.config_path.open())
 
         self.seed = old_config["seed"]
@@ -172,9 +171,9 @@ class Config:
         self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = old_config["n_queries"]
-        self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
-        self.n_prompt_refinemnet_beam_search_size = old_config["n_prompt_refinemnet_beam_search_size"]
-        self.n_query_refinemnet_iterations = old_config["n_query_refinemnet_iterations"]
+        self.n_prompt_refinement_iterations = old_config["n_prompt_refinement_iterations"]
+        self.n_prompt_refinement_beam_search_size = old_config["n_prompt_refinement_beam_search_size"]
+        self.n_query_refinement_iterations = old_config["n_query_refinement_iterations"]
         self.n_query_refiment_beam_search_size = old_config["n_query_refiment_beam_search_size"]
 
         # divide threads into different place
@@ -206,9 +205,9 @@ class Config:
             "unpreferred_definition": self.original_unpreferred_definition,
             "query_refinement_strategies": self.original_query_refinement_strategies,
             "n_queries": self.n_queries,
-            "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
-            "n_prompt_refinemnet_beam_search_size": self.n_prompt_refinemnet_beam_search_size,
-            "n_query_refinemnet_iterations": self.n_query_refinemnet_iterations,
+            "n_prompt_refinement_iterations": self.n_prompt_refinement_iterations,
+            "n_prompt_refinement_beam_search_size": self.n_prompt_refinement_beam_search_size,
+            "n_query_refinement_iterations": self.n_query_refinement_iterations,
             "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
             "n_threads": self.n_threads,
             "n_thread_prompt_refiment": self.n_thread_prompt_refiment,

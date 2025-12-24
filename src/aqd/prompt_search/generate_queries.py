@@ -27,7 +27,6 @@ Return the final generated query string.
 class QueryResponseSchema(BaseModel):
     query: str = Field(description="The final generated query string.")
 
-
 def get_random_attributes(product):
     
     attributes = list(product.keys())
@@ -96,3 +95,30 @@ def generate_queries(
         product_idx += 1
 
     return generated_queries
+
+def generate_queries_baseline(
+        prompt_node: PromptNode,
+        model_path: str, 
+        budget: Budget,
+        product: dict,
+    ) -> List[Tuple[str, dict, list]]:
+    """
+    Generate queries based the prompt pool with product attributes.
+    Each prompt will have n_queries total after this function runs.
+    """
+    query_chain = get_model(model_path, QueryResponseSchema, budget=budget)
+    
+    prompt = prompt_node.prompt
+    
+    attributes = product['selected_attributes']
+    attributes_str = ", ".join(attributes)
+
+    new_query = query_chain(
+        QUERY_GENERATION_PROMPT.format(
+            template=prompt,
+            product_name=product.get("product_name"),
+            attributes=attributes_str,
+        )
+    )['query']
+    
+    return new_query
