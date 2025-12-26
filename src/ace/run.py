@@ -43,6 +43,7 @@ class DataProcessor:
             query_node.evaluation_reason = reason
             query_node.individual_evaluations = individual_evals
             prompt_node.queries.append(query_node)
+            prompt_node.query_refinement_map[query_node] = TreeNode(query_node)
 
             query_node_score = query_node.get_score(config.preference_score_map)
             scores.append(query_node_score)
