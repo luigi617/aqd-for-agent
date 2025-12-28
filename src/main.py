@@ -2,12 +2,15 @@
 import os
 import random
 import json
+import time
+from dataclasses import asdict
 
 from dotenv import load_dotenv
 from src.config import Config
 from src.args_parser import argument_parser
 from src.aqd.prompt_search.prompt_search import PromptSearch
 from src.tap.tap import TreeOfAttackWithPruning
+from src.pair.pair import Pair
 
 
 def set_seed(seed: int = 42):
@@ -70,18 +73,47 @@ def run_tap(config: Config):
     # 3. Target model T -> qwen3-8B
     # 4. Off-topic evaluator: Off-Topic(P,Q), decide whether the q_l is semantically different from q_g -> off-topic evaluator
     # 5. Judge Evaluator: Judge(Q, R), decide whether the response R break the criteria for query Q. -> response evaluator
+    start_time = time.time()
     tap = TreeOfAttackWithPruning(
+        start_time=start_time,
         config=config
     )
     tap_res = tap.run()
     tap_res_json = tap.result_to_json(tap_res)
     save_result(tap_res_json, config.output_path)
+    end_time = tap.end_time
+    with open(os.path.join(config.output_path.parent, 'cost.json'), 'w') as f:
+                json.dump({
+                    "spent_usd": config.budget.spent_usd,
+                    "remaining_usd": config.budget.remaining_usd,
+                    "history": [asdict(h) for h in config.budget.history],
+                    "elapsed_time": end_time - start_time,
+                }, f, indent=4)
+    print("Spent:", config.budget.spent_usd, "remaining:", config.budget.remaining_usd, "elapsed time:", end_time - start_time)
     print(f"Tree of Attack with Pruning: DONE")
 
 
 
 def run_pair(config: Config):
-    raise NotImplementedError("Pair is not implemented yet")
+    print(f"Pair: START")
+    start_time = time.time()
+    pair = Pair(
+        start_time=start_time,
+        config=config
+    )
+    pair_res = pair.run()
+    pair_res_json = pair.result_to_json(pair_res)
+    save_result(pair_res_json, config.output_path)
+    end_time = pair.end_time
+    with open(os.path.join(config.output_path.parent, 'cost.json'), 'w') as f:
+                json.dump({
+                    "spent_usd": config.budget.spent_usd,
+                    "remaining_usd": config.budget.remaining_usd,
+                    "history": [asdict(h) for h in config.budget.history],
+                    "elapsed_time": end_time - start_time,
+                }, f, indent=4)
+    print("Spent:", config.budget.spent_usd, "remaining:", config.budget.remaining_usd, "elapsed time:", end_time - start_time)
+    print(f"Pair: DONE")
 
 def main():
     load_dotenv(override=True)

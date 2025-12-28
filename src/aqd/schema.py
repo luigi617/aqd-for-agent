@@ -132,8 +132,10 @@ class QueryNode:
 
     def get_score(self, preference_score_map: dict):
         if self.is_filtered_out:
+            self.score = -1
             return None
         if self.evaluation is None or len(self.evaluation) == 0:
+            self.score = -1
             return None
         if self.score is not None:
             return self.score

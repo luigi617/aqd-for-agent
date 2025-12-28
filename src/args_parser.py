@@ -158,6 +158,15 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         required=False,
     )
 
+    # Pair arguments
+    parser.add_argument(
+        "--n_iterations",
+        type=int,
+        default=10,
+        help="number of iterations to run pair",
+        required=False,
+    )
+
 
 def argument_parser() -> Config:
     parser = argparse.ArgumentParser(prog="pipeline")
