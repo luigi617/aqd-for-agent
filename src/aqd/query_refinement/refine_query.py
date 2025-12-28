@@ -39,6 +39,8 @@ Rewrite the original query to reflect this customer persona, including any motiv
 - Be locally refined, not entirely reformulated.
 - Be concise (1 - 2 sentences).
 
+Output Format:
+Return the new query.
 """
 
 QUERY_SCENARIO_PROMPT = """You are rewriting a user query to reflect a specific scenario. 
@@ -53,6 +55,9 @@ Rewrite the original query in the specified scenario. The rewritten question sho
 - Apply the scenario in relevant way to the original query. If the scenario is not directly related to the original query, make a connection between the scenario and the original query.
 - Keep the original factual intent and product focus.
 - Be locally refined, not entirely reformulated.
+
+Output Format:
+Return the new query.
 """
 
 QUERY_TONE_PROMPT = """You are rewriting a user query to reflect a specific tone. 
@@ -66,6 +71,9 @@ Rules:
 Rewrite the original query in the specified tone. The rewritten question should:
 - Keep the original factual intent and product focus.
 - Be locally refined, not entirely reformulated.
+
+Output Format:
+Return the new query.
 """
 
 
