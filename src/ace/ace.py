@@ -173,6 +173,9 @@ class ACE:
             playbook_dir=playbook_dir,
             log_dir=log_dir
         )
+        budget_save_path = os.path.join(save_path, f"budget.json")
+        with open(budget_save_path, "w") as f:
+            json.dump(self.config.budget.to_dict(), f, indent=2)
         
         # Print final summary
         print(f"\n{'='*60}")
@@ -231,7 +234,8 @@ class ACE:
             reflection="(empty)",
             use_json_mode=self.use_json_mode,
             call_id=f"{step_id}_gen_initial",
-            log_dir=log_dir
+            log_dir=log_dir,
+            budget=self.config.budget
         )
         
         # Extract answer and check correctness
@@ -285,7 +289,8 @@ class ACE:
                 use_ground_truth=not self.no_ground_truth,
                 use_json_mode=self.use_json_mode,
                 call_id=f"{step_id}_round_{round_num}",
-                log_dir=log_dir
+                log_dir=log_dir,
+                budget=self.config.budget
             )
             
             # Update bullet counts
@@ -302,7 +307,8 @@ class ACE:
                 reflection=reflection_content,
                 use_json_mode=self.use_json_mode,
                 call_id=f"{step_id}_post_reflect_round_{round_num}",
-                log_dir=log_dir
+                log_dir=log_dir,
+                budget=self.config.budget
             )
             
             final_prompt = extract_answer(gen_response)
@@ -337,7 +343,8 @@ class ACE:
                     use_json_mode=self.use_json_mode,
                     call_id=step_id,
                     log_dir=log_dir,
-                    next_global_id=self.next_global_id
+                    next_global_id=self.next_global_id,
+                    budget=self.config.budget
                 )
                 
                 # Run bulletpoint analyzer if enabled
@@ -357,7 +364,8 @@ class ACE:
             reflection="(empty)",
             use_json_mode=self.use_json_mode,
             call_id=f"{step_id}_post_curate",
-            log_dir=log_dir
+            log_dir=log_dir,
+            budget=self.config.budget
         )
 
         final_prompt = extract_answer(gen_response)

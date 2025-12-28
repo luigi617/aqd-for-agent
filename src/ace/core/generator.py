@@ -32,7 +32,8 @@ class Generator:
         reflection: str = "(empty)",
         use_json_mode: bool = False,
         call_id: str = "gen",
-        log_dir: Optional[str] = None
+        log_dir: Optional[str] = None,
+        budget = None,
     ) -> Tuple[str, List[str], Dict[str, Any]]:
         """
         Generate an answer to a question using the playbook.
@@ -61,7 +62,8 @@ class Generator:
             call_id=call_id,
             max_tokens=self.max_tokens,
             log_dir=log_dir,
-            use_json_mode=use_json_mode
+            use_json_mode=use_json_mode,
+            budget=budget
         )
         
         # Extract bullet IDs if using retrieval and reason mode

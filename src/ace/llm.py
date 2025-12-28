@@ -9,11 +9,13 @@ This file contains the LLM class for the project.
 import time
 import random
 from datetime import datetime
+from src.models.costs import compute_cost_usd
 import openai
+from src.aqd.budget import Budget
 from src.ace.logger import log_llm_call, log_problematic_request
 
 def timed_llm_call(client, api_provider, model, prompt, role, call_id, max_tokens=4096, log_dir=None,
-                   sleep_seconds=15, retries_on_timeout=1000, attempt=1, use_json_mode=False):
+                   sleep_seconds=15, retries_on_timeout=1000, attempt=1, use_json_mode=False, budget: Budget = None):
     """
     Make a timed LLM call with error handling and retry logic.
     
@@ -104,6 +106,25 @@ def timed_llm_call(client, api_provider, model, prompt, role, call_id, max_token
                 "prompt_num_tokens": response.usage.prompt_tokens,
                 "response_num_tokens": response.usage.completion_tokens,
             }
+            cached_prompt_tokens = (
+                response.usage.prompt_tokens_details.cached_tokens
+                if response.usage.prompt_tokens_details is not None
+                else 0
+            )
+            cost_usd = compute_cost_usd(
+                    model,
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    cached_prompt_tokens=cached_prompt_tokens,
+                )
+            budget.add_or_raise(
+                delta_usd=cost_usd,
+                cached_prompt_tokens=cached_prompt_tokens,
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                model=model,
+                budget_extra_info=call_info,
+            )
             
             print(f"[{role.upper()}] Call {call_id} completed in {total_time:.2f}s")
             

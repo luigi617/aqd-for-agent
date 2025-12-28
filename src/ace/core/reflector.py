@@ -34,7 +34,8 @@ class Reflector:
         use_ground_truth: bool = True,
         use_json_mode: bool = False,
         call_id: str = "reflect",
-        log_dir: Optional[str] = None
+        log_dir: Optional[str] = None,
+        budget = None
     ) -> Tuple[str, List[Dict[str, str]], Dict[str, Any]]:
         """
         Analyze the generator's output and tag bullets.
@@ -82,7 +83,8 @@ class Reflector:
             call_id=call_id,
             max_tokens=self.max_tokens,
             log_dir=log_dir,
-            use_json_mode=use_json_mode
+            use_json_mode=use_json_mode,
+            budget=budget
         )
         
         # Extract bullet tags

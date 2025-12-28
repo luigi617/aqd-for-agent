@@ -38,7 +38,8 @@ class Curator:
         use_json_mode: bool = False,
         call_id: str = "curate",
         log_dir: Optional[str] = None,
-        next_global_id: int = 1
+        next_global_id: int = 1,
+        budget = None
     ) -> Tuple[str, int, List[Dict[str, Any]], Dict[str, Any]]:
         """
         Curate the playbook based on reflection feedback.
@@ -95,7 +96,8 @@ class Curator:
             call_id=call_id,
             max_tokens=self.max_tokens,
             log_dir=log_dir,
-            use_json_mode=use_json_mode
+            use_json_mode=use_json_mode,
+            budget=budget
         )
         
         # Check for empty response error
