@@ -9,7 +9,7 @@ import time
 from pydantic import BaseModel, Field
 from dataclasses import asdict
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
-from src.aqd.prompt_search.generate_queries import generate_queries
+from src.aqd.prompt_search.generate_queries import generate_queries, generate_queries_baseline
 from src.models.model import get_model
 from src.config import Config
 from src.aqd.query_refinement.generate_response import generate_response
@@ -309,7 +309,6 @@ class Pair:
         self.target_model_path = config.target_model
         self.evaluation_models_paths = config.evaluation_models
         self.budget = config.budget
-        self.product_idx = 0
 
     def _refine_query(self, query_node: QueryNode) -> QueryNode:
         conversation_history = query_node.query_generation_extra_info[
@@ -320,17 +319,17 @@ class Pair:
         proposed_queries = []
         strategy_groups = defaultdict(list)
         for strategy in self.strategies:
-            strategy_prompt = self.config.strategies_prompt_map[strategy] 
-            strategy_groups[strategy_prompt].append(strategy)
+            strategy_prompt = self.config.query_refinement_strategies[strategy] 
+            strategy_groups[strategy_prompt["prompt_name"]].append(strategy)
         
-        for strategy_prompt, strategies in strategy_groups.items():
-            if strategy_prompt == "perturbation":
+        for prompt_name, strategies in strategy_groups.items():
+            if prompt_name == "perturbation":
                 perturbation_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
-            elif strategy_prompt == "profile":
+            elif prompt_name == "profile":
                 profile_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
-            elif strategy_prompt == "scenario":
+            elif prompt_name == "scenario":
                 scenario_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
-            elif strategy_prompt == "tone":
+            elif prompt_name == "tone":
                 tone_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
         
         if not query_node.query_refinement_strategy:
@@ -338,26 +337,26 @@ class Pair:
                 raise Exception("conversation history should be empty at here!")
 
             # generate 4 queries based on different strategy prompt
-            for strategy_prompt in strategy_groups.keys():
-                if strategy_prompt == "perturbation":
+            for prompt_name in strategy_groups.keys():
+                if prompt_name == "perturbation":
                     strategy_system_prompt = QUERY_PERTURBATION_PROMPT_WITHOUT_CHAT_HISTORY.format(
                         criteria=self.unpreferred_definition,
                         prompt=query,
                         strategies=perturbation_str,
                     )
-                elif strategy_prompt == "profile":
+                elif prompt_name == "profile":
                     strategy_system_prompt = QUERY_PROFILE_PROMPT_WITHOUT_CHAT_HISTORY.format(
                         criteria=self.unpreferred_definition,
                         prompt=query,
                         strategies=profile_str,
                     )
-                elif strategy_prompt == "scenario":
+                elif prompt_name == "scenario":
                     strategy_system_prompt = QUERY_SCENARIO_PROMPT_WITHOUT_CHAT_HISTORY.format(
                         criteria=self.unpreferred_definition,
                         prompt=query,
                         strategies=scenario_str,
                     )
-                elif strategy_prompt == "tone":
+                elif prompt_name == "tone":
                     strategy_system_prompt = QUERY_TONE_PROMPT_WITHOUT_CHAT_HISTORY.format(
                         criteria=self.unpreferred_definition,
                         prompt=query,
@@ -545,49 +544,44 @@ class Pair:
                         query_generation_extra_info={
                             "product": global_query["product"],
                             "attribute": global_query["attribute"],
-                            "product_idx": global_query["product_idx"],
                             "conversation_history": [],
                         },
                     )
                 )
-                # if index == 8:
-                #     break
-                self.product_idx = max(self.product_idx, global_query["product_idx"] + 1)
+
         else:
-            global_queries = generate_queries(
-                prompt_node,
-                self.config.generate_model,
-                self.config.budget,
-                self.config.products,
-                self.product_idx,
-                len(self.products),
-            )
+            global_queries = []
+            for product in self.products:
+                global_query = generate_queries_baseline(
+                    prompt_node,
+                    self.config.generate_model,
+                    self.config.budget,
+                    product,
+                )
+                global_queries.append((global_query, product["all_attributes"], product["selected_attributes"]))
 
             # save the global queries to a file
             global_queries_json = []
-            for global_query, product, attribute, product_idx in global_queries:
+            for global_query, product, attribute in global_queries:
                 global_queries_json.append({
                     "global_query": global_query,
                     "product": product,
                     "attribute": attribute,
-                    "product_idx": product_idx,
                 })
             with open(os.path.join(self.config.output_path.parent, f'global_queries.json'), 'w') as f:
                 json.dump(global_queries_json, f, indent=4)
 
-            for global_query, product, attribute, product_idx in global_queries:
+            for global_query, product, attribute in global_queries:
                 prompt_node.queries.append(
                     QueryNode(
                         global_query,
                         query_generation_extra_info={
                             "product": product,
                             "attribute": attribute,
-                            "product_idx": product_idx,
                             "conversation_history": [],
                         },
                     )
                 )
-                self.product_idx = max(self.product_idx, product_idx + 1)
         
         results = []
         for idx, query_node in enumerate(prompt_node.queries):

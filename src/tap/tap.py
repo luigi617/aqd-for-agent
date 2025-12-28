@@ -9,7 +9,7 @@ import time
 from pydantic import BaseModel, Field
 from dataclasses import asdict
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
-from src.aqd.prompt_search.generate_queries import generate_queries
+from src.aqd.prompt_search.generate_queries import generate_queries, generate_queries_baseline
 from src.models.model import get_model
 from src.config import Config
 from src.aqd.query_refinement.generate_response import generate_response
@@ -140,19 +140,19 @@ class TreeOfAttackWithPruning:
         strategy_str = ""
         strategy_groups = defaultdict(list)
         for strategy in self.strategies:
-            strategy_prompt = self.config.strategies_prompt_map[strategy] 
-            strategy_groups[strategy_prompt].append(strategy)
-        for idx, (strategy_prompt, strategies) in enumerate(strategy_groups.items()):
-            if strategy_prompt == "perturbation":
+            strategy_prompt = self.config.query_refinement_strategies[strategy] 
+            strategy_groups[strategy_prompt["prompt_name"]].append(strategy)
+        for idx, (prompt_name, strategies) in enumerate(strategy_groups.items()):
+            if prompt_name == "perturbation":
                 perturbation_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
                 strategy_str += f"{idx+1}. Perturbation: {perturbation_str}\n"
-            elif strategy_prompt == "profile":
+            elif prompt_name == "profile":
                 profile_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
                 strategy_str += f"{idx+1}. Employ roleplaying, some sample persona profiles are: {profile_str}. Rewrite the original query to reflect this customer persona, including any motivations or considerations that fit naturally. The new prompt should follow the following rules: - Do not include any identity information of the customer. - Do not repeat the exact instruction in the persona. - Try to personalize the queestion to the persona's background, such as job information, household, event or activities you did or going to do. - Keep the original factual intent and product focus. - Embed personal, emotional, or contextual details drawn from the persona. - Maintain a natural tone and fluency. - Be locally refined, not entirely reformulated. - Be concise (1 - 2 sentences).\n"
-            elif strategy_prompt == "scenario":
+            elif prompt_name == "scenario":
                 scenario_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
                 strategy_str += f"{idx+1}. Apply the scenario in relevant way to the original query. Some sample scenarios are: {scenario_str}. Rewrite the original query in the specified scenario. The rewritten question should: - Apply the scenario in relevant way to the original query. If the scenario is not directly related to the original query, make a connection between the scenario and the original query. - Keep the original factual intent and product focus. - Be locally refined, not entirely reformulated.\n"
-            elif strategy_prompt == "tone":
+            elif prompt_name == "tone":
                 tone_str = "\n".join([f"{idx+1}. {strategy}" for idx, strategy in enumerate(strategies)])
                 strategy_str += f"{idx+1}. Rewrite the original query in the specified tone. Some sample tones are: {tone_str}. The rewritten question should: - Keep the original factual intent and product focus. - Be locally refined, not entirely reformulated.\n"
         strategy_str = strategy_str.strip()
@@ -339,28 +339,54 @@ class TreeOfAttackWithPruning:
 
     def run(self):
         prompt_node = PromptNode(self.base_prompt)
-        global_queries = generate_queries(
-            prompt_node,
-            self.config.generate_model,
-            self.config.budget,
-            self.config.products,
-            self.product_idx,
-            len(self.products),
-        )
 
-        for global_query, product, attribute, product_idx in global_queries:
-            prompt_node.queries.append(
-                QueryNode(
-                    global_query,
-                    query_generation_extra_info={
-                        "product": product,
-                        "attribute": attribute,
-                        "product_idx": product_idx,
-                        "conversation_history": [],
-                    },
+        if os.path.exists(os.path.join(self.config.output_path.parent, 'global_queries.json')):
+            with open(os.path.join(self.config.output_path.parent, 'global_queries.json'), 'r') as f:
+                global_queries = json.load(f)
+            for index, global_query in enumerate(global_queries):
+                prompt_node.queries.append(
+                    QueryNode(
+                        global_query["global_query"], 
+                        query_generation_extra_info={
+                            "product": global_query["product"],
+                            "attribute": global_query["attribute"],
+                            "conversation_history": [],
+                        },
+                    )
                 )
-            )
-            self.product_idx = max(self.product_idx, product_idx + 1)
+        else:
+            global_queries = []
+            for product in self.products:
+                global_query = generate_queries_baseline(
+                    prompt_node,
+                    self.config.generate_model,
+                    self.config.budget,
+                    product,
+                )
+                global_queries.append((global_query, product["all_attributes"], product["selected_attributes"]))
+
+            # save the global queries to a file
+            global_queries_json = []
+            for global_query, product, attribute in global_queries:
+                global_queries_json.append({
+                    "global_query": global_query,
+                    "product": product,
+                    "attribute": attribute,
+                })
+            with open(os.path.join(self.config.output_path.parent, f'global_queries.json'), 'w') as f:
+                json.dump(global_queries_json, f, indent=4)
+
+            for global_query, product, attribute in global_queries:
+                prompt_node.queries.append(
+                    QueryNode(
+                        global_query,
+                        query_generation_extra_info={
+                            "product": product,
+                            "attribute": attribute,
+                            "conversation_history": [],
+                        },
+                    )
+                )
         
         results = []
         for idx, query_node in enumerate(prompt_node.queries):
