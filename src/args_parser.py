@@ -135,6 +135,38 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         required=False,
     )
 
+    # Tree of Attack with Pruning arguments
+    parser.add_argument(
+        "--n_branching_factor",
+        type=int,
+        default=4,
+        help="number of branching factor",
+        required=False,
+    )
+    parser.add_argument(
+        "--max_width",
+        type=int,
+        default=10,
+        help="maximum width of the tree",
+        required=False,
+    )
+    parser.add_argument(
+        "--max_depth",
+        type=int,
+        default=10,
+        help="maximum depth of the tree",
+        required=False,
+    )
+
+    # Pair arguments
+    parser.add_argument(
+        "--n_iterations",
+        type=int,
+        default=10,
+        help="number of iterations to run pair",
+        required=False,
+    )
+
 
 def argument_parser() -> Config:
     parser = argparse.ArgumentParser(prog="pipeline")

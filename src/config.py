@@ -142,6 +142,14 @@ class Config:
 
         self.output_path = args.output_path
 
+        # Tree of Attack with Pruning arguments
+        self.max_depth = args.max_depth
+        self.max_width = args.max_width
+        self.n_branching_factor = args.n_branching_factor
+
+        # Pair arguments
+        self.n_iterations = args.n_iterations
+
     def load_old_config(self, args):
         self.task = args.task
 
