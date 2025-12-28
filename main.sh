@@ -17,9 +17,9 @@ python3 -m src.main run \
     --products 'input_data/walmart_400_products.json' \
     --output_path 'output_data/test/results.json' \
     --n_queries 1 \
-    --n_prompt_refinemnet_iterations 1 \
-    --n_prompt_refinemnet_beam_search_size 1 \
-    --n_query_refinemnet_iterations 1 \
+    --n_prompt_refinement_iterations 1 \
+    --n_prompt_refinement_beam_search_size 1 \
+    --n_query_refinement_iterations 1 \
     --n_query_refiment_beam_search_size 1 \
     --n_threads 50 \
     --budget 1000 \
@@ -38,13 +38,10 @@ python3 -m src.main run \
 #     --products 'input_data/walmart_400_products.json' \
 #     --output_path 'output_data/lucy/results.json' \
 #     --n_queries 20 \
-#     --n_prompt_refinemnet_iterations 4 \
-#     --n_prompt_refinemnet_beam_search_size 2 \
+#     --n_prompt_refinement_iterations 4 \
+#     --n_prompt_refinement_beam_search_size 2 \
 #     --n_query_refinemnet_iterations 3 \
 #     --n_query_refiment_beam_search_size 3 \
 #     --n_threads 64 \
 #     --budget 1000 \
 #     --seed 617 \
-
-    
-

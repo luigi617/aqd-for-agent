@@ -12,8 +12,8 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--task",
         type=str,
         help="task to run",
-        required=True,
-        choices=["ours", "tap", "pair"],
+        required=False,
+        choices=["ours", "tap", "pair", "gepa"],
         default="ours",
     )
 
@@ -86,21 +86,21 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         required=False,
     )
     parser.add_argument(
-        "--n_prompt_refinemnet_iterations",
+        "--n_prompt_refinement_iterations",
         type=int,
         default=3,
         help="number of iterations of prompt optimization",
         required=False,
     )
     parser.add_argument(
-        "--n_prompt_refinemnet_beam_search_size",
+        "--n_prompt_refinement_beam_search_size",
         type=int,
         default=3,
         help="beam search size in the tree of prompt optimization",
         required=False,
     )
     parser.add_argument(
-        "--n_query_refinemnet_iterations",
+        "--n_query_refinement_iterations",
         type=int,
         default=3,
         help="number of iterations of query refinement",
@@ -194,6 +194,14 @@ def argument_parser() -> Config:
     # ---- resume ----
     resume_parser = subparsers.add_parser(
         "resume", help="resume from previous result"
+    )
+    resume_parser.add_argument(
+        "--task",
+        type=str,
+        help="task to run",
+        required=False,
+        choices=["ours", "tap", "pair", "gepa"],
+        default="ours",
     )
     resume_parser.add_argument(
         "--prev_result",

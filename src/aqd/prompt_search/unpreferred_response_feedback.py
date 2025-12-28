@@ -1,4 +1,5 @@
 
+import heapq
 from typing import List, Tuple
 from pydantic import Field, BaseModel
 from src.aqd.budget import Budget
@@ -46,27 +47,29 @@ def get_unpreferred_criteria_str(unpreferred_definition):
     return "\n".join([f"- {c}" for c in unpreferred_criteria])
 
 def get_unpreferred_response_str(prompt_node: PromptNode):
-    unpreferred_builder = ""
+    query_responses_heap = []
     for query_node in prompt_node.queries:
-        if not query_node.is_filtered_out:
+        if query_node.is_filtered_out:
             continue
 
         query = query_node.query
         response = query_node.response
         eval_reason = query_node.evaluation_reason
+        score = query_node.score
+
+        heapq.heappush(query_responses_heap, (score, query, response, eval_reason))
+        if len(query_responses_heap) > 10:
+            heapq.heappop(query_responses_heap)
     
-        is_unpreferred = query_node.is_unpreferred
-
-        if is_unpreferred:
-            unpreferred_builder += (
-                f"Query: {query}\n"
-                f"Response: {response}\n"
-                f"Reason for unpreferred: {eval_reason}\n\n"
-            )
-
-    if not unpreferred_builder:
-        unpreferred_builder = "[No unpreferred responses were generated]"
-    return unpreferred_builder
+    if not query_responses_heap:
+        return "[No unpreferred responses were generated]"
+    
+    return "\n".join(
+        f"Query: {query}\n"
+        f"Response: {response}\n"
+        f"Reason for unpreferred: {eval_reason}\n"
+        for _, query, response, eval_reason in query_responses_heap
+    )
 
 
 def unpreferred_response_feedback(
@@ -88,7 +91,8 @@ def unpreferred_response_feedback(
             current_prompts=prompt, 
             unpreferred_responses=unpreferred_responses,
             unpreferred_criteria=unpreferred_criteria
-        )
+        ),
+        budget_extra_info={"desc": f"Get unpreferred response feedback"}
     )
 
     return unpreferred_response_feedback["reasoning"], unpreferred_response_feedback["improvement_suggestions"]

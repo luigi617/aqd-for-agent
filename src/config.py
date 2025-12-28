@@ -62,14 +62,15 @@ class Config:
     
     @staticmethod
     def get_strategy_info(query_refinement_strategies):
-        strategies = []
-        strategies_prompt_map = {}
-        strategies_max_apply_num_count = {}
+        strategies = {}
+        
         for strategy_info in query_refinement_strategies:
-            strategies.append(strategy_info["description"])
-            strategies_prompt_map[strategy_info["description"]] = strategy_info["prompt_name"]
-            strategies_max_apply_num_count[strategy_info["description"]] = strategy_info["max_apply_num"]
-        return strategies, strategies_max_apply_num_count, strategies_prompt_map
+            desc = strategy_info["description"]
+            strategies[desc] = {}
+            strategies[desc]["prompt_name"] = strategy_info["prompt_name"]
+            strategies[desc]["max_apply_num"] = strategy_info.get("max_apply_num", 1000)
+            strategies[desc]["mutex_group"] = strategy_info.get("mutex_group", None)
+        return strategies
     
     @staticmethod
     def get_preference_info(preferred_definition, unpreferred_definition):
@@ -113,15 +114,12 @@ class Config:
         else:
             self.original_query_refinement_strategies = DEFAULT_QUERY_REFINEMENT_STRATEGIES
         
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = args.n_queries
-        self.n_prompt_refinemnet_iterations = args.n_prompt_refinemnet_iterations
-        self.n_prompt_refinemnet_beam_search_size = args.n_prompt_refinemnet_beam_search_size
-        self.n_query_refinemnet_iterations = args.n_query_refinemnet_iterations
+        self.n_prompt_refinement_iterations = args.n_prompt_refinement_iterations
+        self.n_prompt_refinement_beam_search_size = args.n_prompt_refinement_beam_search_size
+        self.n_query_refinement_iterations = args.n_query_refinement_iterations
         self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
 
         # divide threads into different place
@@ -152,8 +150,8 @@ class Config:
         # Pair arguments
         self.n_iterations = args.n_iterations
 
-
     def load_old_config(self, args):
+        self.task = args.task
 
         old_config = json.load(args.config_path.open())
 
@@ -178,15 +176,12 @@ class Config:
         self.preference_score_map = preference_info[2]
         
         self.original_query_refinement_strategies = old_config["query_refinement_strategies"]
-        strategy_info = self.get_strategy_info(self.original_query_refinement_strategies)
-        self.query_refinement_strategies = strategy_info[0]
-        self.strategies_max_apply_num_count = strategy_info[1]
-        self.strategies_prompt_map = strategy_info[2]
+        self.query_refinement_strategies = self.get_strategy_info(self.original_query_refinement_strategies)
 
         self.n_queries = old_config["n_queries"]
-        self.n_prompt_refinemnet_iterations = old_config["n_prompt_refinemnet_iterations"]
-        self.n_prompt_refinemnet_beam_search_size = old_config["n_prompt_refinemnet_beam_search_size"]
-        self.n_query_refinemnet_iterations = old_config["n_query_refinemnet_iterations"]
+        self.n_prompt_refinement_iterations = old_config["n_prompt_refinement_iterations"]
+        self.n_prompt_refinement_beam_search_size = old_config["n_prompt_refinement_beam_search_size"]
+        self.n_query_refinement_iterations = old_config["n_query_refinement_iterations"]
         self.n_query_refiment_beam_search_size = old_config["n_query_refiment_beam_search_size"]
 
         # divide threads into different place
@@ -218,9 +213,9 @@ class Config:
             "unpreferred_definition": self.original_unpreferred_definition,
             "query_refinement_strategies": self.original_query_refinement_strategies,
             "n_queries": self.n_queries,
-            "n_prompt_refinemnet_iterations": self.n_prompt_refinemnet_iterations,
-            "n_prompt_refinemnet_beam_search_size": self.n_prompt_refinemnet_beam_search_size,
-            "n_query_refinemnet_iterations": self.n_query_refinemnet_iterations,
+            "n_prompt_refinement_iterations": self.n_prompt_refinement_iterations,
+            "n_prompt_refinement_beam_search_size": self.n_prompt_refinement_beam_search_size,
+            "n_query_refinement_iterations": self.n_query_refinement_iterations,
             "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
             "n_threads": self.n_threads,
             "n_thread_prompt_refiment": self.n_thread_prompt_refiment,

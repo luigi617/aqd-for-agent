@@ -1,5 +1,4 @@
 
-import random
 from typing import List, Tuple
 from pydantic import Field, BaseModel
 from src.aqd.budget import Budget
@@ -359,7 +358,8 @@ def refine_prompt(
                 unpreferred_feedback_reasoning = unpreferred_feedback_reason,
                 unpreferred_feedback_improvement_suggestions = unpreferred_feedback_improvement_suggestions,
                 prev_prompts = get_previous_prompts(previous_prompts),
-            )
+            ),
+            budget_extra_info={"desc": f"Refine prompt for strategy refinement"}
         )
 
         previous_prompts.append(new_prompt['new_prompts'])
@@ -377,8 +377,9 @@ def refine_prompt(
                     preferred_feedback_reasoning = preferred_feedback_reason,
                     preferred_feedback_improvement_suggestions = preferred_feedback_improvement_suggestions,
                     prev_prompts = get_previous_prompts(previous_prompts),
-                )
-            )
+            ),
+            budget_extra_info={"desc": f"Refine prompt for diversity"}
+        )
         previous_prompts.append(new_diversity_prompt['new_prompts'])
         proposed_prompts.append((new_diversity_prompt['new_prompts'], new_diversity_prompt["reflection"], "diversity"))
 
@@ -395,8 +396,9 @@ def refine_prompt(
                     preferred_feedback_improvement_suggestions = preferred_feedback_improvement_suggestions,
                     target_criterion = get_least_used_criterion(prompt_node, unpreferred_definition),
                     prev_prompts = get_previous_prompts(previous_prompts),
-                )
-            )
+            ),
+            budget_extra_info={"desc": f"Refine prompt for criterion optimization"}
+        )
         previous_prompts.append(new_target_criterion_prompt['new_prompts'])
         proposed_prompts.append((new_target_criterion_prompt['new_prompts'], new_target_criterion_prompt["reflection"], "criterion_optimization"))
 
