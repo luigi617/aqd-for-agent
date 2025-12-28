@@ -1,4 +1,5 @@
 from functools import lru_cache
+import time
 from typing import Type, Optional
 from time import sleep
 from random import random
@@ -76,11 +77,15 @@ def get_model(
         while attempt < max_tries:
             try:
                 usage_cb = TokenUsageCallback()
+                t0 = time.perf_counter()
                 out = chain.invoke(
                     {"prompt": prompt_text},
                     config={"callbacks": [usage_cb]},
                 )
+                t1 = time.perf_counter()
+                
                 model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                out_dict = model_obj.model_dump()
 
                 cost_usd = compute_cost_usd(
                     model_name,
@@ -88,6 +93,13 @@ def get_model(
                     completion_tokens=usage_cb.completion_tokens,
                     cached_prompt_tokens=usage_cb.cached_prompt_tokens,
                 )
+                record = {
+                    "model": model_name,
+                    "prompt": prompt_text,
+                    "response": out_dict,
+                    "call_time": t1 - t0,
+                    "timestamp": time.strftime("%m/%d/%Y_%H:%M:%S"),
+                }
                 if budget is not None and cost_usd is not None:
                     budget.add_or_raise(
                         delta_usd=cost_usd,
@@ -95,7 +107,7 @@ def get_model(
                         prompt_tokens=usage_cb.prompt_tokens,
                         completion_tokens=usage_cb.completion_tokens,
                         model=model_name,
-                        budget_extra_info=budget_extra_info,
+                        budget_extra_info={**record, **(budget_extra_info or {})}
                     )
 
                 return model_obj.model_dump()
