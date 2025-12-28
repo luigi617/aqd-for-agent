@@ -107,7 +107,7 @@ def get_model(
                         prompt_tokens=usage_cb.prompt_tokens,
                         completion_tokens=usage_cb.completion_tokens,
                         model=model_name,
-                        budget_extra_info={**record, **budget_extra_info},
+                        budget_extra_info={**record, **(budget_extra_info or {})}
                     )
 
                 return model_obj.model_dump()
