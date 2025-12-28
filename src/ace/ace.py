@@ -80,7 +80,7 @@ class ACE:
         # Track global bullet ID
         self.next_global_id = 1
 
-        self.max_num_rounds = self.config.n_prompt_refinemnet_iterations
+        self.max_num_rounds = self.config.n_prompt_refinement_iterations
         
         self.num_epochs = 1
         
