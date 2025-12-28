@@ -13,7 +13,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         type=str,
         help="task to run",
         required=False,
-        choices=["ours", "tap", "pair", "gepa"],
+        choices=["ours", "tap", "pair", "gepa", "ace"],
         default="ours",
     )
 

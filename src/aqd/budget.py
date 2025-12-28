@@ -87,9 +87,7 @@ class Budget:
             )
 
     def dump(self, path: Path):
-        with open(path, 'w') as f:
-            # use default to save TokenUsage object even though it's not JSON serializable
-            json.dump({'spent_usd': self.spent_usd, 'history': self.history}, f, default=lambda o: o.__dict__, indent=4)
+        json.dump({'spent_usd': self.spent_usd, 'history': self.history}, path.open('w'), default=lambda o: o.__dict__, indent=4)
         
     def to_dict(self):
         return {
