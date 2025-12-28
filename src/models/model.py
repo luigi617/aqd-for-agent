@@ -23,12 +23,12 @@ from src.models.costs import TokenUsageCallback, compute_cost_usd
 @lru_cache(maxsize=None)
 def _get_base_llm(
     model_name: str,
-    pydantic_model: Type[BaseModel],
-    temperature: float,
-    timeout: int,
-    sensitive: bool,
+    pydantic_model: Type[BaseModel] = None,
+    temperature: float = 0.1,
+    timeout: int = 120,
+    sensitive: bool = False,
 ):
-    if "qwen" in model_name:
+    if "deepseek" not in model_name and "gpt" not in model_name and "gemini" not in model_name:
         return get_ollama(model_name, pydantic_model, temperature, timeout)
 
     if sensitive:
@@ -45,10 +45,10 @@ def _get_base_llm(
 
 def get_model(
     model_name: str,
-    pydantic_model: Type[BaseModel],
+    pydantic_model: Type[BaseModel] = None,
     temperature: float = 0.1,
     sensitive: bool = False,
-    retries: int = 1, # -1 for infinite retries
+    retries: int = 5, # -1 for infinite retries
     base_delay: float = 1.5,
     max_delay: float = 30.0,
     timeout: int = 120,
@@ -83,9 +83,12 @@ def get_model(
                     config={"callbacks": [usage_cb]},
                 )
                 t1 = time.perf_counter()
-                
-                model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
-                out_dict = model_obj.model_dump()
+
+                if pydantic_model is not None:
+                    model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                    out_dict = model_obj.model_dump()
+                else:
+                    out_dict = out.content
 
                 cost_usd = compute_cost_usd(
                     model_name,
@@ -109,9 +112,11 @@ def get_model(
                         model=model_name,
                         budget_extra_info={**record, **(budget_extra_info or {})}
                     )
-
-                return model_obj.model_dump()
+                if pydantic_model is not None:
+                    return model_obj.model_dump()
                 
+                return out.content
+
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e
             except Exception as e:

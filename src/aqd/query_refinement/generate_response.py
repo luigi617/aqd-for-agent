@@ -6,6 +6,14 @@ from src.models.model import get_model
 
 RESPONSE_GEN_PROMPT = """
 Provide a direct answer to the user's query based on the provided attributes.
+Instructions (follow all)
+- Do NOT mention field names or say “according to the attributes”.
+- Do not hallucinate any information not present.
+
+Output Format:
+{{
+    "response": "<The generated response to the query.>"
+}}
 
 Product attributes:
 {attributes}
@@ -13,12 +21,7 @@ Product attributes:
 User query:
 {query}
 
-Instructions (follow all)
-- Do NOT mention field names or say “according to the attributes”.
-- Do not hallucinate any information not present.
-
-Output Format:
-Return the generated response to the query.
+Return:
 """
 
 
@@ -52,9 +55,17 @@ def generate_response(
     attributes_str = get_all_attribute_with_value(product)
 
     # get response
-    response = generate_response_chain(
-        RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
-        budget_extra_info={"desc": f"Generating response for query: {query}"}
-    )
+    try:
+        response = generate_response_chain(
+            RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
+            budget_extra_info={"desc": f"Generating response for query: {query}"}
+        )
+        return response["response"]
+    except Exception as e:
+        generate_response_chain = get_model(model_path, sensitive=True, budget=budget)
+        response = generate_response_chain(
+            RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
+            budget_extra_info={"desc": f"Generating response for query: {query}"}
+        )
+        return response
 
-    return response["response"]
