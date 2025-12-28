@@ -42,7 +42,7 @@ def generate_response(
     if query_node.response is not None:
         return query_node.response
 
-    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=False, budget=budget)
+    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
     
     query = query_node.query
     query_generation_extra_info = query_node.query_generation_extra_info
