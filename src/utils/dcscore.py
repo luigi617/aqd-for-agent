@@ -14,9 +14,9 @@ from sklearn.metrics.pairwise import rbf_kernel, chi2_kernel, polynomial_kernel,
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM, LlamaForCausalLM
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
-from torchvision.models import inception_v3
+# from torchvision.models import inception_v3
 from tqdm import tqdm
-import torchvision.transforms as transforms
+# import torchvision.transforms as transforms
 import os
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
@@ -175,7 +175,7 @@ class DCScore:
 
                         # Normalize embeddings
                         sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
-                        embeddings.append(sentence_embeddings.squeeze().cpu().numpy())
+                        embeddings.append(sentence_embeddings.cpu().numpy())
                         continue
                         
                     # completely version
@@ -198,8 +198,8 @@ class DCScore:
                             
                 if type(output) == list:
                     output = output[0]
-                embeddings.append(output.squeeze().cpu().numpy())
-            embeddings_all = np.concatenate(embeddings, 0)
+                embeddings.append(output.cpu().numpy())
+            embeddings_all = np.concatenate([e if e.ndim == 2 else e[None, ...] for e in embeddings], 0)
         n, d = embeddings_all.shape
         return embeddings_all, n, d
         
