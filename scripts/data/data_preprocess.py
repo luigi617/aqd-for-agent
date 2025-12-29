@@ -5,6 +5,7 @@ import copy
 import argparse
 from Levenshtein import distance
 from scipy import stats
+import collections
 
 
 def edit_ratio(a, b):
@@ -70,27 +71,28 @@ def reformat(clean_dataset, products_filepath):
         products = json.load(f)
 
     # create a name to attribute mapping
-    name_to_attribute = {}
+    name_to_metadata = {}
     for product in products:
-        name_to_attribute[product["product_name"]] = product
+        name_to_metadata[product["product_name"]] = product
 
     for idx, item in enumerate(clean_dataset):
         new_item = {}
         new_item["id"] = idx
-        new_item["global_id"] = item["global_id"]
+        new_item["global_id"] = item.get("global_id")
+        new_item["query_generation_extra_info"] = name_to_metadata[item["query_generation_extra_info"]["product"]]
         new_item["query"] = item["query"]
         new_item["response"] = item["response"]
         new_item["score"] = item["score"]
-        new_item["product_attributes"] = name_to_attribute[item["product"]]
-        new_item["selected_attributes"] = item["attributes"]
+        new_item["is_filtered_out"] = item.get("is_filtered_out")
+        new_item["filtering_confidence_score"] = item.get("filtering_confidence_score")
         new_item["evaluation"] = item["evaluation"]
-        new_item["evaluation_reason"] = item["evaluation_reason"]
+        new_item["evaluation_reason"] = item.get("evaluation_reason")
 
         final_dataset.append(new_item)
         
     return final_dataset
 
-def aggregate_data(filtered_data, eval_robustness, products_filepath):
+def aggregate_data(args, filtered_data, eval_robustness, products_filepath):
     """filter out the similar responses and update the score with the average score of the group
 
     Args:
@@ -116,7 +118,7 @@ def aggregate_data(filtered_data, eval_robustness, products_filepath):
             if found:
                 for item in queries_group["queries"]:
                     if item["id"] in group_ids:
-                        if item["score"] != "None":
+                        if item["score"] != "None" and item["score"] is not None:
                             group_scores.append(float(item["score"]))
                 avg_score = np.mean(group_scores)
                 # picked_item["score"] = avg_score
@@ -128,12 +130,21 @@ def aggregate_data(filtered_data, eval_robustness, products_filepath):
     return final_dataset
 
 
-def calculate_statistics(filtered_data):
+def calculate_statistics(filtered_data, final_dataset):
     """calculate the statistics of the filtered dataset
 
     Args:
         filtered_data (dict): The formatted data with the raw queries grouped by the cluster ids
     """
+
+    # calculate how many products and how many queries per product
+    product_count = collections.defaultdict(int)
+    for item in final_dataset:
+        product_name = item["query_generation_extra_info"]["product_name"]
+        product_count[product_name] += 1
+    print("="*100)
+    print(f"Total products: {len(product_count)}; Avg queries per product: {sum(product_count.values()) / len(product_count)}")
+    
     total_query_count = 0
     filtered_query_count = 0
     filtered_query_percentage_per_group = []
@@ -143,7 +154,7 @@ def calculate_statistics(filtered_data):
     high_filtered_query_percentage_products = []
     low_filtered_query_percentage_products = []
     for group_id, group_data in filtered_data.items():
-        score_g = group_data["score"]
+        score_g = group_data["score"] if group_data["score"] is not None else -1
         current_filtered_query_count = 0
         for query_data in group_data["queries"]:
             total_query_count += 1
@@ -154,10 +165,10 @@ def calculate_statistics(filtered_data):
         filtered_query_percentage_per_group.append(current_filtered_query_percentage)
         if current_filtered_query_percentage > 0.8:
             high_filtered_query_percentage_group_scores.append(score_g)
-            high_filtered_query_percentage_products.append(group_data["queries"][0]["product"])
+            high_filtered_query_percentage_products.append(group_data["queries"][0]["query_generation_extra_info"]["product"])
         elif current_filtered_query_percentage < 0.4:
             low_filtered_query_percentage_group_scores.append(score_g)
-            low_filtered_query_percentage_products.append(group_data["queries"][0]["product"])
+            low_filtered_query_percentage_products.append(group_data["queries"][0]["query_generation_extra_info"]["product"])
         else:
             continue
 
@@ -168,10 +179,12 @@ def calculate_statistics(filtered_data):
     score_drop_high = []
     score_drop_low = []
     for group_id, group_data in filtered_data.items():
-        score_g = float(group_data["score"])
+        score_g = float(group_data["score"]) if group_data["score"] is not None else -1
         if score_g == 0:
             score_g = 0.1
         for query_data in group_data["queries"]:
+            if not query_data["score"]:
+                continue
             if query_data["id"] != 0 and not query_data["response_is_similar"]:
                 score_drop.append((float(score_g) - float(query_data["score"])))
                 if score_g > 1.5: # high score group
@@ -225,7 +238,7 @@ def eval_score_robustness(filtered_data, eval_robustness):
             found = False
             if reduced_id == 0:
                 found = True
-                representative_score = float(value["g"])
+                representative_score = float(value["g"]) if value["g"] is not None else -1
             # else:
             #     for item in queries_group["queries"]:
             #         if item["id"] == reduced_id:
@@ -235,7 +248,7 @@ def eval_score_robustness(filtered_data, eval_robustness):
             if found:
                 for item in queries_group["queries"]:
                     if item["id"] in group_ids:
-                        if item["score"] != "None":
+                        if item["score"] != "None" and item["score"] is not None:
                             group_scores.append(float(item["score"]))
 
                 if np.std(group_scores) == 0 and np.mean(group_scores) == representative_score:
@@ -282,17 +295,29 @@ def main(args):
             eval_robustness[f"{node_id}_{idx}"] = {"g": "", "l": {}}
             for id, query in enumerate(query_group):
                 # print(f"query {id} in query group {idx}")
-                if query["id"] == 0 and query["parent_id"] is None:
-                    query_g_content = query["query"]
-                    response_g = query["response"]
-                    score_g = query["score"]
-                    eval_robustness[f"{node_id}_{idx}"]["g"] = score_g
+                if args.task == "gepa":
+                    if id == 0:
+                        query_g_content = query["query"]
+                        response_g = query["response"]
+                        score_g = query["score"]
+                        eval_robustness[f"{node_id}_{idx}"]["g"] = score_g
 
-                    filtered_data[f"{node_id}_{idx}"]["query"] = query_g_content
-                    filtered_data[f"{node_id}_{idx}"]["response"] = response_g
-                    filtered_data[f"{node_id}_{idx}"]["score"] = score_g
+                        filtered_data[f"{node_id}_{idx}"]["query"] = query_g_content
+                        filtered_data[f"{node_id}_{idx}"]["response"] = response_g
+                        filtered_data[f"{node_id}_{idx}"]["score"] = score_g
+                    filtered_data[f"{node_id}_{idx}"]["queries"].append(query)
+                else:
+                    if query["id"] == 0 and query.get("parent_id") is None:
+                        query_g_content = query["query"]
+                        response_g = query["response"]
+                        score_g = query["score"]
+                        eval_robustness[f"{node_id}_{idx}"]["g"] = score_g
 
-                filtered_data[f"{node_id}_{idx}"]["queries"].append(query)
+                        filtered_data[f"{node_id}_{idx}"]["query"] = query_g_content
+                        filtered_data[f"{node_id}_{idx}"]["response"] = response_g
+                        filtered_data[f"{node_id}_{idx}"]["score"] = score_g
+
+                    filtered_data[f"{node_id}_{idx}"]["queries"].append(query)
 
             groups, reduced = group_strings(filtered_data[f"{node_id}_{idx}"], args.filter_out_threshold)
             for reduced_id, group_ids in zip(reduced, groups):
@@ -310,9 +335,28 @@ def main(args):
                 else:
                     query["response_is_similar"] = True
 
-    final_dataset = aggregate_data(filtered_data, eval_robustness, args.products_filepath)
+    final_dataset = aggregate_data(args, filtered_data, eval_robustness, args.products_filepath)
 
     return final_dataset, filtered_data, eval_robustness
+
+def serialize_data(args):
+    """serialize the data to a json file
+
+    Args:
+        input_file (str): The input file
+        output_dir (str): The output directory
+    """
+    with open(args.input_file, "r") as f:
+        data = json.load(f)
+    final_dataset = []
+    for node in data:
+        node_id = node["id"]
+        queries = node["queries"]
+        for idx, query_group in enumerate(queries):
+            for id, query in enumerate(query_group):
+                final_dataset.append(query)
+    with open(os.path.join(args.output_dir, "cleaned_dataset.json"), "w") as f:
+        json.dump(final_dataset, f, indent=4)
 
 
 
@@ -322,22 +366,66 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_dataset", help="path to the output directory")
     parser.add_argument("--filter_out_threshold", type=float, default=0.2, help="threshold for filtering out similar responses")
     parser.add_argument("--products_filepath", type=str, default="/local/data/shared/aqd/input_data/walmart_products.json", help="path to the products file")
+    parser.add_argument("--task", type=str, default="ours", choices=["tap", "pair", "gepa", "ours"], help="task to run")
+    parser.add_argument("--no_filter", action="store_true", help="whether to filter out similar responses")
     args = parser.parse_args()
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    final_dataset, filtered_data, eval_robustness = main(args)
-    with open(os.path.join(args.output_dir, "cleaned_dataset.json"), "w") as f:
-        json.dump(final_dataset, f, indent=4)
+    if args.no_filter:
+        serialize_data(args)
+    else:
 
-    calculate_statistics(filtered_data)
-    eval_score_robustness(filtered_data, eval_robustness)
+        final_dataset, filtered_data, eval_robustness = main(args)
+        with open(os.path.join(args.output_dir, "cleaned_dataset.json"), "w") as f:
+            json.dump(final_dataset, f, indent=4)
+
+        calculate_statistics(filtered_data, final_dataset)
+        eval_score_robustness(filtered_data, eval_robustness)
 
 '''
 python scripts/data/data_preprocess.py \
---input_file /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/results_seedprompt0.json \
---output_dir /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_dataset \
+--input_file output_data/ours/results.json \
+--output_dir output_data/gpt5-mini_1218/ours \
 --filter_out_threshold 0.2 \
---products_filepath /local/data/shared/aqd/input_data/walmart_products.json
+--products_filepath input_data/product_info.json \
+--task ours
+'''
+
+'''
+python scripts/data/data_preprocess.py \
+--input_file output_data/gpt5-mini_1218/tap/formatted_results.json \
+--output_dir output_data/gpt5-mini_1218/tap \
+--filter_out_threshold 0.2 \
+--products_filepath input_data/product_info_1.json \
+--task tap
+'''
+
+'''
+python scripts/data/data_preprocess.py \
+--input_file output_data/gpt5-mini_1218/pair/formatted_results.json \
+--output_dir output_data/gpt5-mini_1218/pair \
+--filter_out_threshold 0.2 \
+--products_filepath input_data/product_info_1.json \
+--task pair
+'''
+
+'''
+python scripts/data/data_preprocess.py \
+--input_file output_data/gpt5-mini_1218/gepa/formatted_results.json \
+--output_dir output_data/gpt5-mini_1218/gepa \
+--filter_out_threshold 0.2 \
+--products_filepath input_data/product_info_1.json \
+--task gepa
+'''
+
+# gemma data
+'''
+python scripts/data/data_preprocess.py \
+--input_file output_data/gemma/ours/results.json \
+--output_dir output_data/gemma_1227/ours \
+--filter_out_threshold 0.2 \
+--products_filepath input_data/product_info_1.json \
+--task ours
 '''

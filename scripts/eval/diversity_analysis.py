@@ -3,6 +3,8 @@ import json
 import random
 import os
 import numpy as np
+from src.utils.dcscore import DCScore
+
 try:
     import torch  # optional, used only for serialization convenience
 except Exception:  # pragma: no cover
@@ -30,9 +32,7 @@ def _json_default(obj):
     # Let json raise for unknown types
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
-def main(args):
-    with open(args.input_file, "r") as f:
-        data = json.load(f)
+def evaluate_diversity(args, data):
 
     # select 1000 random questions
     # set seed
@@ -58,12 +58,27 @@ def main(args):
     embedding_diversity, n_clusters, cluster_diversity = evaluate_semantic_diversity(data, args.embedding_model_path)
     print(f"Embedding Diversity: {embedding_diversity}, Number of Clusters: {n_clusters}, Cluster Diversity: {cluster_diversity}")
 
+    # evaluate the dcsore
+    text_list = [item["query"] for item in data]
+    for text in text_list:
+        if not text:
+            breakpoint()
+    batch_size = 10
+    dcscore_evaluator = DCScore(embedder_path=args.embedding_model_path)
+    embeddings, n, d = dcscore_evaluator.get_embedding(text_list, batch_size=batch_size)
+    print(f"Shape of embeddings: {embeddings.shape}")
+    # calculate dcscore based on embedding
+    # dataset_dcscore = dcscore_evaluator.calculate_dcscore_by_texts(text_list, batch_size=batch_size)
+    dataset_dcscore = dcscore_evaluator.calculate_dcscore_by_embedding(embeddings)
+    print(f"DCScore Diversity: {dataset_dcscore}")
     with open(os.path.join(args.output_dir, "semantic_diversity.json"), "w") as f:
         json.dump({
             "embedding_diversity": embedding_diversity,
             "n_clusters": n_clusters,
-            "cluster_diversity": cluster_diversity
+            "cluster_diversity": cluster_diversity,
+            "dataset_dcscore": dataset_dcscore
         }, f, indent=4, default=_json_default)
+
 
     return 
 
@@ -84,11 +99,4 @@ if __name__ == "__main__":
     else:
         print(f"Output directory {args.output_dir} already exists")
 
-    main(args)
-
-'''
-python -m scripts.eval.diversity_analysis \
---input_file /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/human_annotation/real_unhelpful_logs_1293.json \
---output_dir /home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/human_annotation \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B
-'''
+    evaluate_diversity(args, data)
