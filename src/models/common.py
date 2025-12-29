@@ -9,7 +9,8 @@ def get_seed():
 def check_ollama_running(model_path: str) -> None:
     """Raise error if Ollama or the requested model is not running."""
     try:
-        resp = requests.get("http://localhost:11434/api/tags", timeout=2)
+        ollama_url = os.environ.get("OLLAMA_URL")
+        resp = requests.get(f"{ollama_url}/api/tags", timeout=2)
         resp.raise_for_status()
         models = [m["name"] for m in resp.json().get("models", [])]
         if model_path not in models:
