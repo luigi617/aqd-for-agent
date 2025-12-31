@@ -121,6 +121,7 @@ def get_model(
                 last_exc = e
             except Exception as e:
                 last_exc = e
+            print("Prompt :", prompt_text)
             print("Error: ", last_exc)
             
             attempt += 1

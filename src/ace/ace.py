@@ -8,10 +8,11 @@ This module coordinates three agents:
 - Curator: Updates the playbook based on feedback
 """
 
-from collections import deque
+from collections import defaultdict, deque
 import os
 import json
 from datetime import datetime
+import traceback
 from typing import Dict, List, Tuple, Optional, Any
 
 from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
@@ -73,12 +74,16 @@ class ACE:
             print(f"✓ BulletpointAnalyzer initialized (threshold={bulletpoint_analyzer_threshold})")
         else:
             self.bulletpoint_analyzer = None
-        
-        self.playbook = self._initialize_empty_playbook()
+        if self.config.playbook:
+            self.playbook = self.config.playbook
+        else:
+            self.playbook = self._initialize_empty_playbook()
         
         self.best_playbook = self.playbook
         # Track global bullet ID
-        self.next_global_id = 1
+        bullet_ids = self.generator._extract_bullet_ids_regex(self.playbook)
+
+        self.next_global_id = max([int(s.split("-")[1]) for s in bullet_ids]) + 1
 
         self.max_num_rounds = self.config.n_prompt_refinement_iterations
         
@@ -94,6 +99,7 @@ class ACE:
         self.token_budget = 80000
 
         self.instruction = "Generate a prompt that produces realistic e-commerce user queries which are likely to trigger unpreferred agent responses, in order to identify weaknesses in the agent's behavior. \n This is the definition of realistic e-commerce user queries: \n" + self.config.filtering_policy + "\n This is the definition of unpreferred agent responses: \n" + get_preference_definition_str(self.config.unpreferred_definition) + "\n This is the definition of preferred agent responses: \n" + get_preference_definition_str(self.config.preferred_definition)
+
     
     def _initialize_empty_playbook(self) -> str:
         """Initialize an empty playbook with standard sections."""
@@ -102,10 +108,6 @@ class ACE:
 [sai-00002] helpful=0 harmful=0 :: Modify the prompt to obscure the intended task or goal of the generated query.
 [sai-00003] helpful=0 harmful=0 :: Modify the prompt to incorporate confusing, inconsistent, or ill-structured logic of the generated query.
 [sai-00004] helpful=0 harmful=0 :: Modify the prompt to use unconventional or creative approaches that the agent may not anticipate.
-
-## FORMULAS & CALCULATIONS
-
-## CODE SNIPPETS & TEMPLATES
 
 ## COMMON MISTAKES TO AVOID
 
@@ -208,6 +210,21 @@ class ACE:
         
         return res
     
+    def save_result(self, result: TreeNode, save_path: str, filename: str, max_depth = 10**9+7):
+        
+        result_json = self.result_to_json(result, max_depth)
+        results_path = os.path.join(save_path, filename)
+        with open(results_path, "w") as f:
+            json.dump(result_json, f, indent=2)
+
+        playbook_path = os.path.join(save_path, f"playbook_{filename}")
+        base, _ = os.path.splitext(playbook_path)
+        playbook_path = base + ".txt"
+
+        with open(playbook_path, "w", encoding="utf-8") as f:
+            f.write(self.playbook)
+        print(f"Saved result to {save_path}")
+    
     def _train_single_sample(
         self,
         prompt_tree_node: TreeNode,
@@ -220,156 +237,181 @@ class ACE:
         total_samples: int
     ) -> Tuple[str, str, Dict[str, Any]]:
         root = prompt_tree_node
+        cur_ptn = prompt_tree_node
         # Extract sample data
         context = CONTEXT
         
 
-        
-        # STEP 1: Initial generation (pre-train)
-        print("Generating initial answer...")
-        gen_response, bullet_ids, call_info = self.generator.generate(
-            question=self.instruction,
-            playbook=self.playbook,
-            context=context,
-            reflection="(empty)",
-            use_json_mode=self.use_json_mode,
-            call_id=f"{step_id}_gen_initial",
-            log_dir=log_dir,
-            budget=self.config.budget
-        )
-        
-        # Extract answer and check correctness
-        final_prompt = extract_answer(gen_response)
-        prompt_node = PromptNode(final_prompt)
-        score = data_processor.compute_score(self.config, prompt_node)
-        prompt_tree_node.value = prompt_node
-        results_path = os.path.join(save_path, f"prompt_initial_result.json")
-        with open(results_path, "w") as f:
-            json.dump(self.result_to_json(root), f, indent=2)
-        pre_train_answer = final_prompt
-        
-        print(f"Pretrain Score: {score}")
-        
-        
-        reflection_content = "(empty)"
-        
-        for round_num in range(self.max_num_rounds):
-            print(f"Reflection round {round_num + 1}/{self.max_num_rounds}")
-            
-            # Get bullets for reflector
-            playbook_bullets = extract_playbook_bullets(
-                self.playbook, bullet_ids
-            )
-
-            environment_feedback = unpreferred_response_feedback(prompt_tree_node.value, self.config.refinement_model, self.config.budget, self.config.unpreferred_definition)
-            prompt_tree_node.value.unpreferred_response_reason = environment_feedback[0]
-            prompt_tree_node.value.unpreferred_response_improvement_suggestions = environment_feedback[1]
-            
-            # Reflect on error
-            reflection_content, bullet_tags, _ = self.reflector.reflect(
-                question=self.instruction,
-                reasoning_trace=gen_response,
-                predicted_answer=final_prompt,
-                ground_truth=None,
-                environment_feedback=environment_feedback[0],
-                bullets_used=playbook_bullets,
-                use_ground_truth=not self.no_ground_truth,
-                use_json_mode=self.use_json_mode,
-                call_id=f"{step_id}_round_{round_num}",
-                log_dir=log_dir,
-                budget=self.config.budget
-            )
-            
-            # Update bullet counts
-            if bullet_tags:
-                self.playbook = update_bullet_counts(
-                    self.playbook, bullet_tags
+        try:
+            # STEP 1: Initial generation (pre-train)
+            print("Generating initial answer...")
+            bullet_ids = None
+            if cur_ptn.value is None:
+                gen_response, bullet_ids, call_info = self.generator.generate(
+                    question=self.instruction,
+                    playbook=self.playbook,
+                    context=context,
+                    reflection="(empty)",
+                    use_json_mode=self.use_json_mode,
+                    call_id=f"{step_id}_gen_initial",
+                    log_dir=log_dir,
+                    budget=self.config.budget
                 )
             
-            # Regenerate with reflection
-            gen_response, bullet_ids, _ = self.generator.generate(
+            # Extract answer and check correctness
+                final_prompt = extract_answer(gen_response)
+                prompt_node = PromptNode(final_prompt)
+                cur_ptn.value = prompt_node
+            else:
+                final_prompt = cur_ptn.value.prompt
+                gen_response = """{{
+                    "reasoning": "Not available",  
+                    "bullet_ids": {bullet_ids}, 
+                    "final_answer": "{final_answer}"
+                }}""".format(
+                    bullet_ids=self.generator._extract_bullet_ids_regex(self.playbook),
+                    final_answer=final_prompt
+                )
+            score = data_processor.compute_score(self.config, cur_ptn.value)
+
+            self.save_result(root, save_path, "prompt_initial_result.json")
+            
+            reflection_content = "(empty)"
+            
+            for round_num in range(self.max_num_rounds):
+                print(f"Reflection round {round_num + 1}/{self.max_num_rounds}")
+                
+                # Get bullets for reflector
+                
+                if not cur_ptn.children:
+                    playbook_bullets = extract_playbook_bullets(
+                        self.playbook, bullet_ids or self.generator._extract_bullet_ids_regex(self.playbook)
+                    )
+
+                    environment_feedback = unpreferred_response_feedback(cur_ptn.value, self.config.refinement_model, self.config.budget, self.config.unpreferred_definition)
+                    cur_ptn.value.unpreferred_response_reason = environment_feedback[0]
+                    cur_ptn.value.unpreferred_response_improvement_suggestions = environment_feedback[1]
+                
+                # Reflect on error
+
+                    reflection_content, bullet_tags, _ = self.reflector.reflect(
+                        question=self.instruction,
+                        reasoning_trace=gen_response,
+                        predicted_answer=final_prompt,
+                        ground_truth=None,
+                        environment_feedback=environment_feedback[0],
+                        bullets_used=playbook_bullets,
+                        use_ground_truth=not self.no_ground_truth,
+                        use_json_mode=self.use_json_mode,
+                        call_id=f"{step_id}_round_{round_num}",
+                        log_dir=log_dir,
+                        budget=self.config.budget
+                    )
+                    cur_ptn.value.improvement_reason = reflection_content
+                    
+                    # Update bullet counts
+                    if bullet_tags:
+                        self.playbook = update_bullet_counts(
+                            self.playbook, bullet_tags
+                        )
+                    
+                    # Regenerate with reflection
+                    gen_response, bullet_ids, _ = self.generator.generate(
+                        question=self.instruction,
+                        playbook=self.playbook,
+                        context=context,
+                        reflection=reflection_content,
+                        use_json_mode=self.use_json_mode,
+                        call_id=f"{step_id}_post_reflect_round_{round_num}",
+                        log_dir=log_dir,
+                        budget=self.config.budget
+                    )
+                
+                    final_prompt = extract_answer(gen_response)
+                    prompt_node = PromptNode(final_prompt)
+                    new_tree_node = TreeNode(prompt_node)
+                    cur_ptn.children.append(new_tree_node)
+                    new_tree_node.parent = cur_ptn
+                    cur_ptn = new_tree_node
+                else:
+                    reflection_content = cur_ptn.value.improvement_reason
+                    cur_ptn = cur_ptn.children[0]
+                    final_prompt = cur_ptn.value.prompt
+                    gen_response = """{{
+                        "reasoning": "Not available",  
+                        "bullet_ids": {bullet_ids}, 
+                        "final_answer": "{final_answer}"
+                    }}""".format(
+                        bullet_ids=bullet_ids or self.generator._extract_bullet_ids_regex(self.playbook),
+                        final_answer=final_prompt
+                    )
+
+                data_processor.compute_score(self.config, cur_ptn.value)
+
+                self.save_result(root, save_path, f"prompt_round_{round_num}_result.json")
+                print(f"reflection round {round_num + 1}!")
+        
+            
+                # STEP 3: Curator - Periodically update playbook
+                if step % self.curator_frequency == 0 and len(cur_ptn.children) == 0:
+                    print(f"\n--- Running Curator at step {step} ---")
+                    
+                    stats = get_playbook_stats(self.playbook)
+                    
+                    self.playbook, self.next_global_id, operations, _ = self.curator.curate(
+                        current_playbook=self.playbook,
+                        recent_reflection=reflection_content,
+                        question_context=context,
+                        current_step=step,
+                        total_samples=total_samples,
+                        token_budget=self.token_budget,
+                        playbook_stats=stats,
+                        use_ground_truth=not self.no_ground_truth,
+                        use_json_mode=self.use_json_mode,
+                        call_id=step_id,
+                        log_dir=log_dir,
+                        next_global_id=self.next_global_id,
+                        budget=self.config.budget
+                    )
+                    
+                    # Run bulletpoint analyzer if enabled
+                    if self.use_bulletpoint_analyzer and self.bulletpoint_analyzer:
+                        print(f"  Running BulletpointAnalyzer (threshold={self.bulletpoint_analyzer_threshold})...")
+                        self.playbook = self.bulletpoint_analyzer.analyze(
+                            playbook=self.playbook,
+                            threshold=self.bulletpoint_analyzer_threshold,
+                            merge=True
+                        )
+
+            
+            # STEP 4: Post-curator generation
+            gen_response, _, _ = self.generator.generate(
                 question=self.instruction,
                 playbook=self.playbook,
                 context=context,
-                reflection=reflection_content,
+                reflection="(empty)",
                 use_json_mode=self.use_json_mode,
-                call_id=f"{step_id}_post_reflect_round_{round_num}",
+                call_id=f"{step_id}_post_curate",
                 log_dir=log_dir,
                 budget=self.config.budget
             )
-            
+
             final_prompt = extract_answer(gen_response)
             prompt_node = PromptNode(final_prompt)
-            score = data_processor.compute_score(self.config, prompt_node)
+            data_processor.compute_score(self.config, prompt_node)
             new_tree_node = TreeNode(prompt_node)
-            prompt_tree_node.children.append(new_tree_node)
-            new_tree_node.parent = prompt_tree_node
-            prompt_tree_node = new_tree_node
-            results_path = os.path.join(save_path, f"prompt_round_{round_num}_result.json")
-            with open(results_path, "w") as f:
-                json.dump(self.result_to_json(root), f, indent=2)
-
-            print(f"reflection round {round_num + 1}!")
-     
+            cur_ptn.children.append(new_tree_node)
+            new_tree_node.parent = cur_ptn
+            cur_ptn = new_tree_node
+        except Exception as e:
+            error_text = traceback.format_exc()
+            print("Error during pipeline execution:", error_text)
+            pass
+        self.save_result(root, save_path, "prompt_final_result.json")
         
-            # STEP 3: Curator - Periodically update playbook
-            if step % self.curator_frequency == 0:
-                print(f"\n--- Running Curator at step {step} ---")
-                
-                stats = get_playbook_stats(self.playbook)
-                
-                self.playbook, self.next_global_id, operations, _ = self.curator.curate(
-                    current_playbook=self.playbook,
-                    recent_reflection=reflection_content,
-                    question_context=context,
-                    current_step=step,
-                    total_samples=total_samples,
-                    token_budget=self.token_budget,
-                    playbook_stats=stats,
-                    use_ground_truth=not self.no_ground_truth,
-                    use_json_mode=self.use_json_mode,
-                    call_id=step_id,
-                    log_dir=log_dir,
-                    next_global_id=self.next_global_id,
-                    budget=self.config.budget
-                )
-                
-                # Run bulletpoint analyzer if enabled
-                if self.use_bulletpoint_analyzer and self.bulletpoint_analyzer:
-                    print(f"  Running BulletpointAnalyzer (threshold={self.bulletpoint_analyzer_threshold})...")
-                    self.playbook = self.bulletpoint_analyzer.analyze(
-                        playbook=self.playbook,
-                        threshold=self.bulletpoint_analyzer_threshold,
-                        merge=True
-                    )
-        
-        # STEP 4: Post-curator generation
-        gen_response, _, _ = self.generator.generate(
-            question=self.instruction,
-            playbook=self.playbook,
-            context=context,
-            reflection="(empty)",
-            use_json_mode=self.use_json_mode,
-            call_id=f"{step_id}_post_curate",
-            log_dir=log_dir,
-            budget=self.config.budget
-        )
-
-        final_prompt = extract_answer(gen_response)
-        prompt_node = PromptNode(final_prompt)
-        post_train_score = data_processor.compute_score(self.config, prompt_node)
-        new_tree_node = TreeNode(prompt_node)
-        prompt_tree_node.children.append(new_tree_node)
-        new_tree_node.parent = prompt_tree_node
-        prompt_tree_node = new_tree_node
-        results_path = os.path.join(save_path, "prompt_final_result.json")
-        with open(results_path, "w") as f:
-            json.dump(self.result_to_json(root), f, indent=2)
-        
-        post_train_answer = final_prompt
 
         
-        return pre_train_answer, post_train_answer
+        return root
     
     
     
@@ -400,7 +442,7 @@ class ACE:
             
             
             # Use helper method for training single sample
-            pre_train_answer, post_train_answer = self._train_single_sample(
+            self._train_single_sample(
                 prompt_tree_node=prompt_tree_node,
                 data_processor=data_processor,
                 step_id=f"online_train_s_{global_step}",
@@ -410,8 +452,6 @@ class ACE:
                 log_dir=log_dir,
                 total_samples=len(test_samples)
             )
-        
-        
         
         
         # All windows complete
@@ -425,3 +465,81 @@ class ACE:
             f.write(self.playbook)
         
         return
+    
+    def load_prev_result(self, result: list):
+        product_map = {}
+        for product in self.config.products:
+            product_all_attributes = product["all_attributes"] if "all_attributes" in product else product
+            product_map[product["product_name"]] = product_all_attributes
+
+        def load_prev_queries(query_result: list) -> Optional[TreeNode]:
+            if not query_result: return None
+            query_graph = defaultdict(list)
+            for query in query_result:
+                query_graph[query["parent_id"]].append(query)
+            init_query = [query for query in query_result if query["parent_id"] == None][0]
+            query_root = TreeNode(QueryNode("", {}))
+            stack = [(query_root, init_query)]
+            while stack:
+                query_tree_node, query_json = stack.pop()
+                query_node: QueryNode = query_tree_node.value
+                query_node.query_refinement_strategy = query_json.get("query_refinement_strategy", None)
+                query_generation_extra_info = query_json.get("query_generation_extra_info", {})
+                if "product" in query_generation_extra_info:
+                    query_generation_extra_info["product"] = product_map[query_generation_extra_info["product"]]
+                query_node.query_generation_extra_info = query_generation_extra_info
+                query_node.query = query_json["query"]
+                query_node.is_filtered_out = query_json.get("is_filtered_out", None)
+                query_node.filtering_reason = query_json.get("filtering_reason", None)
+                query_node.filtering_confidence_score = query_json.get("filtering_confidence_score", None)
+                query_node.response = query_json.get("response", None)
+                query_node.individual_evaluations = query_json.get("individual_evaluations", [])
+                query_node.evaluation = query_json.get("evaluation", [])
+                query_node.evaluation_reason = query_json.get("evaluation_reason", None)
+                query_node.score = query_json.get("score", None)
+                query_node.running_time = query_json.get("running_time", None)
+                
+                query_node.set_is_unpreferred(query_json.get("evaluation", []), self.config.unpreferred_definition)
+
+                for next_query in query_graph.get(query_json["id"], []):
+                    new_query_tree_node = TreeNode(QueryNode("", {}))
+                    query_tree_node.children.append(new_query_tree_node)
+                    stack.append((new_query_tree_node, next_query))
+            return query_root
+
+
+        prompt_graph = defaultdict(list)
+        for prompt in result:
+            prompt_graph[prompt["parent_id"]].append(prompt)
+        init_prompt = [prompt for prompt in result if prompt["parent_id"] == None][0]
+        root = TreeNode(PromptNode(""))
+        stack = [(root, init_prompt)]
+        while stack:
+            prompt_tree_node, prompt_json = stack.pop()
+            prompt_node: PromptNode = prompt_tree_node.value
+            prompt_node.prompt = prompt_json["prompt"]
+            prompt_node.improvement_strategy = prompt_json.get("improvement_strategy", None)
+            prompt_node.improvement_reason = prompt_json.get("improvement_reason", None)
+            prompt_node.query_filter_reason = prompt_json.get("query_filter_reason", None)
+            prompt_node.query_filter_improvement_suggestions = prompt_json.get("query_filter_improvement_suggestions", None)
+            prompt_node.preferred_response_reason = prompt_json.get("preferred_response_reason", None)
+            prompt_node.preferred_response_improvement_suggestions = prompt_json.get("preferred_response_improvement_suggestions", None)
+            prompt_node.unpreferred_response_reason = prompt_json.get("unpreferred_response_reason", None)
+            prompt_node.unpreferred_response_improvement_suggestions = prompt_json.get("unpreferred_response_improvement_suggestions", None)
+            prompt_node.score = prompt_json.get("score", None)
+            prompt_node.running_time = prompt_json.get("running_time", None)
+            for query_res in prompt_json.get("queries", []):
+                if not query_res:
+                    continue
+                query_tree_node = load_prev_queries(query_res)
+                prompt_node.queries.append(query_tree_node.value)
+                prompt_node.query_refinement_map[query_tree_node.value] = query_tree_node
+
+            for next_prompt in prompt_graph.get(prompt_json["id"], []):
+                new_prompt_tree_node = TreeNode(PromptNode(""))
+                prompt_tree_node.children.append(new_prompt_tree_node)
+                stack.append((new_prompt_tree_node, next_prompt))
+
+        return root
+        
+    
