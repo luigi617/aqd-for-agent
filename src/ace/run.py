@@ -77,8 +77,8 @@ class DataProcessor:
                 prompt_node.query_refinement_map[query_node] = TreeNode(query_node)
 
                 scores.append(query_node_score)
-
-        prompt_node.score = sum(scores) / len(scores) if scores else 0
+        valid_scores = [s for s in scores if s is not None]
+        prompt_node.score = sum(valid_scores) / len(valid_scores) if valid_scores else 0
         return prompt_node.score
 
 def run_ace(config: Config):
