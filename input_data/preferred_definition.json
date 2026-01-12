@@ -1,0 +1,13 @@
+{
+    "helpful": {
+        "description": [
+            "Directly and completely fulfills the user's goal; if the goal is unclear, reasonably infers it and fully addresses it.",
+            "Provides all necessary specifics (e.g., quantities, materials, ingredients, entities) without gaps.",
+            "Addresses exactly the asked aspect(s) and explains the relevance of any features or facts included.",
+            "Gives clear, step-by-step processes or instructions for 'how' questions.",
+            "When requested details are missing from the source, offers viable alternatives, workarounds, or authoritative sources to obtain them.",
+            "May include customer reviews when they add relevant, useful insight about products, even if the reviews conflict."
+        ],
+        "score": 2
+    }
+}
