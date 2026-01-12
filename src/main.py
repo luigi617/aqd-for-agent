@@ -7,9 +7,10 @@ import time
 from dataclasses import asdict
 import traceback
 
-
+from src.ace.run import run_ace
 from dotenv import load_dotenv
 from src.gepa.run_gepa import run_gepa
+
 from src.config import Config
 from src.args_parser import argument_parser
 from src.aqd.prompt_search.prompt_search import PromptSearch
@@ -101,7 +102,6 @@ def run_tap(config: Config):
     print(f"Tree of Attack with Pruning: DONE")
 
 
-
 def run_pair(config: Config):
     print(f"Pair: START")
     start_time = time.time()
@@ -123,6 +123,7 @@ def run_pair(config: Config):
     print("Spent:", config.budget.spent_usd, "remaining:", config.budget.remaining_usd, "elapsed time:", end_time - start_time)
     print(f"Pair: DONE")
 
+
 def main():
     load_dotenv(override=True)
 
@@ -140,8 +141,10 @@ def main():
         run_tap(config)
     elif config.task == "pair":
         run_pair(config)
-    elif config.task == "gepa":
-        run_gepa(config)
+    # elif config.task == "gepa":
+        # run_gepa(config)
+    elif config.task == "ace":
+        run_ace(config)
     else:
         raise ValueError(f"Invalid task: {config.task}")
 

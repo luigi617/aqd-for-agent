@@ -13,7 +13,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         type=str,
         help="task to run",
         required=False,
-        choices=["ours", "tap", "pair", "gepa"],
+        choices=["ours", "tap", "pair", "gepa", "ace"],
         default="ours",
     )
 
@@ -200,7 +200,7 @@ def argument_parser() -> Config:
         type=str,
         help="task to run",
         required=False,
-        choices=["ours", "tap", "pair", "gepa"],
+        choices=["ours", "tap", "pair", "gepa", "ace"],
         default="ours",
     )
     resume_parser.add_argument(
@@ -214,6 +214,12 @@ def argument_parser() -> Config:
         type=Path,
         help="path to the configuration previously used",
         required=True,
+    )
+    resume_parser.add_argument(
+        "--playbook_path",
+        type=Path,
+        help="path to the playbook used in ACE",
+        required=False,
     )
     resume_parser.add_argument(
         "--output_path",
