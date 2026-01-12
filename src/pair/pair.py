@@ -366,16 +366,15 @@ class Pair:
                 proposed_queries.append((refinement["prompt"], strategy_prompt))
 
         else:
-            if query_node.query_refinement_strategy == "perturbation":
+            if query_node.query_refinement_strategy["prompt_name"] == "perturbation":
                 if not conversation_history:
-                    breakpoint()
                     raise Exception("conversation history shouldn't be empty at here!")
                 strategy_system_prompt = QUERY_PERTURBATION_PROMPT_WITH_CHAT_HISTORY.format(
                     criteria=self.unpreferred_definition,
                     chat_history=conversation_history,
                     strategies=perturbation_str,
                 )
-            elif query_node.query_refinement_strategy == "profile":
+            elif query_node.query_refinement_strategy["prompt_name"] == "profile":
                 if not conversation_history:
                     raise Exception("conversation history should not be empty at here!")
                 strategy_system_prompt = QUERY_PROFILE_PROMPT_WITH_CHAT_HISTORY.format(
@@ -383,7 +382,7 @@ class Pair:
                     chat_history=conversation_history,
                     strategies=profile_str,
                 )
-            elif query_node.query_refinement_strategy == "scenario":
+            elif query_node.query_refinement_strategy["prompt_name"] == "scenario":
                 if not conversation_history:
                     raise Exception("conversation history should not be empty at here!")
                 strategy_system_prompt = QUERY_SCENARIO_PROMPT_WITH_CHAT_HISTORY.format(
@@ -391,7 +390,7 @@ class Pair:
                     chat_history=conversation_history,
                     strategies=scenario_str,
                 )
-            elif query_node.query_refinement_strategy == "tone":
+            elif query_node.query_refinement_strategy["prompt_name"] == "tone":
                 if not conversation_history:
                     raise Exception("conversation history should not be empty at here!")
                 strategy_system_prompt = QUERY_TONE_PROMPT_WITH_CHAT_HISTORY.format(

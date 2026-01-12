@@ -223,7 +223,7 @@ if __name__ == "__main__":
         "--task",
         type=str,
         default="ours",
-        choices=["ours", "tap", "pair", "gepa", "real"],
+        choices=["ours", "tap", "pair", "gepa", "real", "ace"],
         help="task to run",
     )
     parser.add_argument(
@@ -279,70 +279,11 @@ if __name__ == "__main__":
 # ours data
 """
 python -m scripts.eval.eval \
---input_file output_data/gpt5-mini_1218/ours/cleaned_dataset.json \
---output_dir output_data/gpt5-mini_1218/ours/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
+--input_file output_data/evaluation/gpt5/pqr/cleaned_dataset.json \
+--output_dir output_data/evaluation/gpt5/pqr/eval_1_data_per_product \
+--product_file '<your domain knowledge>' \
 --embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---budget_file output_data/ours/budget.json \
---task ours \
---data_sample 1_data_per_product
-"""
-
-# tap data
-"""
-python -m scripts.eval.eval \
---input_file output_data/gpt5-mini_1218/tap/cleaned_dataset.json \
---output_dir output_data/gpt5-mini_1218/tap/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---budget_file output_data/tap/cost.json \
---task tap \
---data_sample 1_data_per_product
-"""
-
-# pair data
-"""
-python -m scripts.eval.eval \
---input_file output_data/gpt5-mini_1218/pair/cleaned_dataset.json \
---output_dir output_data/gpt5-mini_1218/pair/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---budget_file output_data/pair/cost.json \
---task pair \
---data_sample 1_data_per_product
-"""
-
-# gepa data
-"""
-python -m scripts.eval.eval \
---input_file output_data/gpt5-mini_1218/gepa/cleaned_dataset.json \
---output_dir output_data/gpt5-mini_1218/gepa/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---budget_file output_data/gepa/full_run/gepa_budget_log.json \
---task gepa \
---data_sample 1_data_per_product
-"""
-
-# real data
-"""
-python -m scripts.eval.eval \
---input_file output_data/gpt5-mini_1218/real/cleaned_data.json \
---output_dir output_data/gpt5-mini_1218/real/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---task real \
---data_sample 1_data_per_product
-"""
-
-# gemma data
-"""
-python -m scripts.eval.eval \
---input_file output_data/gemma_1227/ours/cleaned_dataset.json \
---output_dir output_data/gemma_1227/ours/eval_1_data_per_product \
---product_file input_data/product_info_1.json \
---embedding_model_path Qwen/Qwen3-Embedding-0.6B \
---budget_file output_data/gemma/ours/budget.json \
+--budget_file output_data/gpt5/pqr/budget.json \
 --task ours \
 --data_sample 1_data_per_product
 """

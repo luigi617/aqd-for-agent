@@ -40,7 +40,7 @@ preferred_definition_raw = json.load(open("/local/data/shared/aqd/input_data/pre
 unpreferred_definition_raw = json.load(open("/local/data/shared/aqd/input_data/unpreferred_definition.json"))
 filtering_policy = open("/local/data/shared/aqd/input_data/realism_definition.txt").read()
 query_refinement_strategies = None
-n_query_refiment_beam_search_size = 10
+n_query_refinement_beam_search_size = 10
 
 preferred_definition = {}
 unpreferred_definition = {}
@@ -67,7 +67,7 @@ query_refinement = QueryRefinement(
     preference_score_map=preference_score_map,
     filtering_policy=filtering_policy,
     query_refinement_strategies=query_refinement_strategies,
-    n_query_refiment_beam_search_size=2,
+    n_query_refinement_beam_search_size=2,
     budget=budget,
 )
 query_node = query_refinement.generate_response(query_node)

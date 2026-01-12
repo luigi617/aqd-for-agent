@@ -111,7 +111,7 @@ class ScoreMetric(RunningMetic):
             preference_score_map=preference_score_map,
             filtering_policy=None,
             query_refinement_strategies=None,
-            n_query_refiment_beam_search_size=2,
+            n_query_refinement_beam_search_size=2,
             budget=budget,
         )
         query_node = query_refinement.evaluate_responses(query_node)

@@ -366,7 +366,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="/home/yunanlu/code/aqd-for-agent/output_data/gpt5-mini_1126/cleaned_dataset", help="path to the output directory")
     parser.add_argument("--filter_out_threshold", type=float, default=0.2, help="threshold for filtering out similar responses")
     parser.add_argument("--products_filepath", type=str, default="/local/data/shared/aqd/input_data/walmart_products.json", help="path to the products file")
-    parser.add_argument("--task", type=str, default="ours", choices=["tap", "pair", "gepa", "ours"], help="task to run")
+    parser.add_argument("--task", type=str, default="ours", choices=["tap", "pair", "gepa", "ours", "ace"], help="task to run")
     parser.add_argument("--no_filter", action="store_true", help="whether to filter out similar responses")
     args = parser.parse_args()
 
@@ -386,46 +386,9 @@ if __name__ == "__main__":
 
 '''
 python scripts/data/data_preprocess.py \
---input_file output_data/ours/results.json \
---output_dir output_data/gpt5-mini_1218/ours \
+--input_file output_data/gpt5/pqr/results.json \
+--output_dir output_data/evaluation/gpt5/pqr \
 --filter_out_threshold 0.2 \
---products_filepath input_data/product_info.json \
---task ours
-'''
-
-'''
-python scripts/data/data_preprocess.py \
---input_file output_data/gpt5-mini_1218/tap/formatted_results.json \
---output_dir output_data/gpt5-mini_1218/tap \
---filter_out_threshold 0.2 \
---products_filepath input_data/product_info_1.json \
---task tap
-'''
-
-'''
-python scripts/data/data_preprocess.py \
---input_file output_data/gpt5-mini_1218/pair/formatted_results.json \
---output_dir output_data/gpt5-mini_1218/pair \
---filter_out_threshold 0.2 \
---products_filepath input_data/product_info_1.json \
---task pair
-'''
-
-'''
-python scripts/data/data_preprocess.py \
---input_file output_data/gpt5-mini_1218/gepa/formatted_results.json \
---output_dir output_data/gpt5-mini_1218/gepa \
---filter_out_threshold 0.2 \
---products_filepath input_data/product_info_1.json \
---task gepa
-'''
-
-# gemma data
-'''
-python scripts/data/data_preprocess.py \
---input_file output_data/gemma/ours/results.json \
---output_dir output_data/gemma_1227/ours \
---filter_out_threshold 0.2 \
---products_filepath input_data/product_info_1.json \
+--products_filepath '<your domain knowledge>' \
 --task ours
 '''

@@ -50,22 +50,3 @@ if __name__ == "__main__":
 
     with open(args.output_file, "w") as f:
         json.dump(final_dataset, f, indent=4)
-
-'''
-python scripts/data/baseline_data_preprocess.py \
---input_file output_data/gpt5-mini_1218/tap/results.json \
---output_file output_data/gpt5-mini_1218/tap/formatted_results.json
-'''
-
-'''
-python scripts/data/baseline_data_preprocess.py \
---input_file output_data/pair/results.json \
---output_file output_data/gpt5-mini_1218/pair/formatted_results.json
-'''
-
-'''
-python scripts/data/baseline_data_preprocess.py \
---input_file output_data/gepa/full_run/gepa_prompt_log.json \
---output_file output_data/gpt5-mini_1218/gepa/formatted_results.json \
---task gepa
-'''
