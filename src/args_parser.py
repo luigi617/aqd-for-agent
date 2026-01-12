@@ -107,7 +107,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         required=False,
     )
     parser.add_argument(
-        "--n_query_refiment_beam_search_size",
+        "--n_query_refinement_beam_search_size",
         type=int,
         default=3,
         help="beam search size in the tree of query refinement",

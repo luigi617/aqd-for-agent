@@ -120,7 +120,7 @@ class Config:
         self.n_prompt_refinement_iterations = args.n_prompt_refinement_iterations
         self.n_prompt_refinement_beam_search_size = args.n_prompt_refinement_beam_search_size
         self.n_query_refinement_iterations = args.n_query_refinement_iterations
-        self.n_query_refiment_beam_search_size = args.n_query_refiment_beam_search_size
+        self.n_query_refinement_beam_search_size = args.n_query_refinement_beam_search_size
 
         # divide threads into different place
         self.n_threads = args.n_threads
@@ -182,7 +182,7 @@ class Config:
         self.n_prompt_refinement_iterations = old_config["n_prompt_refinement_iterations"]
         self.n_prompt_refinement_beam_search_size = old_config["n_prompt_refinement_beam_search_size"]
         self.n_query_refinement_iterations = old_config["n_query_refinement_iterations"]
-        self.n_query_refiment_beam_search_size = old_config["n_query_refiment_beam_search_size"]
+        self.n_query_refinement_beam_search_size = old_config["n_query_refinement_beam_search_size"]
 
         # divide threads into different place
         self.n_threads = old_config["n_threads"]
@@ -216,7 +216,7 @@ class Config:
             "n_prompt_refinement_iterations": self.n_prompt_refinement_iterations,
             "n_prompt_refinement_beam_search_size": self.n_prompt_refinement_beam_search_size,
             "n_query_refinement_iterations": self.n_query_refinement_iterations,
-            "n_query_refiment_beam_search_size": self.n_query_refiment_beam_search_size,
+            "n_query_refinement_beam_search_size": self.n_query_refinement_beam_search_size,
             "n_threads": self.n_threads,
             "n_thread_prompt_refiment": self.n_thread_prompt_refiment,
             "n_thread_queries": self.n_thread_queries,
