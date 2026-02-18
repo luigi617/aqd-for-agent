@@ -25,7 +25,9 @@ for file in budget_folder.iterdir():
 
         time = 0
         for entry in data['history']:
-            if entry['model'] != 'qwen3:8b':
+            desc_str = (entry.get('budget_extra_info') or {}).get('desc', "")
+            # ace uses gemma:27b instead of qwen3:8b, so check desc_str for ace
+            if entry['model'] != 'qwen3:8b' and not desc_str.startswith('Generating response for query'):
                 time += entry['completion_tokens']/MODEL_TO_SPEED[entry['model']]
 
         method = file.stem.split('_budget')[0]
