@@ -15,6 +15,14 @@ MODEL_TO_SPEED = {
     'deepseek-reasoner': 49 # deepseek provider https://artificialanalysis.ai/models/deepseek-v3-2-reasoning/providers?speed=output-speed#speed
 }
 
+# time to first token, obtained from links above
+MODEL_TO_LATENCY = {
+    'gemma3:27b': 0.73,
+    'gpt-5-mini': 19.8,
+    'gemini-2.5-flash': 12.08,
+    'deepseek-reasoner': 1.11
+}
+
 output_data = defaultdict(dict)
 
 for file in budget_folder.iterdir():
@@ -28,7 +36,7 @@ for file in budget_folder.iterdir():
             desc_str = (entry.get('budget_extra_info') or {}).get('desc', "")
             # ace uses gemma:27b instead of qwen3:8b, so check desc_str for ace
             if entry['model'] != 'qwen3:8b' and not desc_str.startswith('Generating response for query'):
-                time += entry['completion_tokens']/MODEL_TO_SPEED[entry['model']]
+                time += entry['completion_tokens']/MODEL_TO_SPEED[entry['model']]+MODEL_TO_LATENCY[entry['model']]
 
         method = file.stem.split('_budget')[0]
         output_data[method]['total time (s)'] = time
