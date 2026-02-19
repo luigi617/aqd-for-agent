@@ -17,7 +17,7 @@ OUTPUT_JSON = "unhelpful_data/results/queries_with_llm_realism.json"
 OUTPUT_DIR = "unhelpful_data/results/"
 
 DEV = True
-DEV_MAX_ITEMS = 20  # cap total items in dev mode (set None for no cap)
+DEV_MAX_ITEMS = None  # cap total items in dev mode (set None for no cap)
 
 OPENAI_MODEL = "gpt-5-nano" if DEV else "gpt-5.2"
 DEEPSEEK_MODEL = "deepseek-chat" if DEV else "deepseek-reasoner"

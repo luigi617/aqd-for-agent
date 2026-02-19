@@ -14,7 +14,7 @@ INPUT_DIR = "unhelpful_data"
 OUTPUT_DIR = "unhelpful_data/results"
 
 DEV = True
-DEV_ITEMS_PER_FILE = 10
+DEV_ITEMS_PER_FILE = None
 
 OPENAI_MODEL = "gpt-5-nano" if DEV else "gpt-5.2"
 DEEPSEEK_MODEL = "deepseek-chat" if DEV else "deepseek-reasoner"
