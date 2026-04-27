@@ -1,8 +1,8 @@
 import json
 import pandas as pd
+from dataset_config import DATA_DIR
 
-
-file_path = "unhelpful_data/results/queries_with_llm_realism.json"
+file_path = f"{DATA_DIR}/results/queries_with_llm_realism.json"
 
 with open(file_path, "r", encoding="utf-8") as f:
     data = json.load(f)

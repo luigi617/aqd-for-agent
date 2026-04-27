@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Iterable, Set, Any, Dict, List
 
 import pandas as pd
+from dataset_config import DATA_DIR
+
+DATA_DIR_PATH = Path(DATA_DIR)
+CSV_PATH = DATA_DIR_PATH / "results" / "final_merged_results.csv"
+OUTPUT_CSV = DATA_DIR_PATH / "results" / f"{DATA_DIR_PATH.name}_stats.csv"
 
 
 def load_queries_from_json(json_path: Path) -> Set[str]:
@@ -34,9 +39,9 @@ def load_queries_from_json(json_path: Path) -> Set[str]:
 
 
 def main(
-    csv_path: str = "unhelpful_data/results/final_merged_results.csv",
-    json_dir: str = "unhelpful_data",
-    output_csv: str = "unhelpful_data/results/unhelpful_data_stats.csv",
+    csv_path: str = str(CSV_PATH),
+    json_dir: str = str(DATA_DIR_PATH),
+    output_csv: str = str(OUTPUT_CSV),
 ) -> None:
     csv_path_p = Path(csv_path)
     json_dir_p = Path(json_dir)

@@ -8,12 +8,13 @@ from dotenv import load_dotenv
 import aiohttp
 import aiofiles
 from openai import AsyncOpenAI
+from dataset_config import DATA_DIR
 load_dotenv()
 
-INPUT_DIR = "unhelpful_data"
-OUTPUT_DIR = "unhelpful_data/results"
+INPUT_DIR = DATA_DIR
+OUTPUT_DIR = f"{DATA_DIR}/results"
 
-DEV = True
+DEV = False
 DEV_ITEMS_PER_FILE = None
 
 OPENAI_MODEL = "gpt-5-nano" if DEV else "gpt-5.2"

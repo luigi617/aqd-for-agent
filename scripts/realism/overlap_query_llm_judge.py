@@ -8,13 +8,14 @@ from dotenv import load_dotenv
 import aiohttp
 import aiofiles
 from openai import AsyncOpenAI
+from dataset_config import DATA_DIR
 
 load_dotenv()
 
 # ====== NEW INPUT/OUTPUT ======
-INPUT_JSON = "unhelpful_data/results/queries_in_jsons_with_realism.json"
-OUTPUT_JSON = "unhelpful_data/results/queries_with_llm_realism.json"
-OUTPUT_DIR = "unhelpful_data/results/"
+INPUT_JSON = f"{DATA_DIR}/results/queries_in_jsons_with_realism.json"
+OUTPUT_JSON = f"{DATA_DIR}/results/queries_with_llm_realism.json"
+OUTPUT_DIR = f"{DATA_DIR}/results/"
 
 DEV = True
 DEV_MAX_ITEMS = None  # cap total items in dev mode (set None for no cap)

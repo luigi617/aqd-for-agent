@@ -2,11 +2,15 @@ import json
 import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
+from dataset_config import DATA_DIR
+
+RESULTS_DIR = f"{DATA_DIR}/results"
+ANNOTATIONS_DIR = f"{DATA_DIR}/realism_annotations"
 
 # -------------------------
 # Load main JSON file
 # -------------------------
-with open("unhelpful_data/results/_combined.json", "r", encoding="utf-8") as f:
+with open(f"{RESULTS_DIR}/_combined.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 # -------------------------
@@ -28,9 +32,9 @@ df_extracted = pd.DataFrame(extracted)
 # -------------------------
 # Load annotation CSVs
 # -------------------------
-luigi = pd.read_csv("unhelpful_data/realism_annotations/annotate_data_luigi.csv")
-omar  = pd.read_csv("unhelpful_data/realism_annotations/annotate_data_omar.csv")
-lucy  = pd.read_csv("unhelpful_data/realism_annotations/annotate_data_lucy.csv")
+luigi = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_luigi.csv")
+omar  = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_omar.csv")
+lucy  = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_lucy.csv")
 
 # Keep only needed columns + rename
 luigi = luigi[["query", "realism"]].rename(
@@ -128,5 +132,5 @@ df_stats = pd.DataFrame(results)
 print("\n=== Correlation Results (including avg_score mean) ===")
 print(df_stats)
 
-df_final.to_csv("unhelpful_data/results/final_merged_results.csv", index=False)
-df_stats.to_csv("unhelpful_data/results/correlation_results.csv", index=False)
+df_final.to_csv(f"{RESULTS_DIR}/final_merged_results.csv", index=False)
+df_stats.to_csv(f"{RESULTS_DIR}/correlation_results.csv", index=False)

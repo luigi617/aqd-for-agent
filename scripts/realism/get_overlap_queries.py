@@ -1,10 +1,11 @@
 import json
 import glob
 import pandas as pd
+from dataset_config import DATA_DIR
 
-MERGED_CSV = "unhelpful_data/results/merged_annotations.csv"
-JSON_DIR = "unhelpful_data"
-OUTPUT_JSON = "unhelpful_data/results/queries_in_jsons_with_realism.json"
+MERGED_CSV = f"{DATA_DIR}/results/merged_annotations.csv"
+JSON_DIR = DATA_DIR
+OUTPUT_JSON = f"{DATA_DIR}/results/queries_in_jsons_with_realism.json"
 
 
 df = pd.read_csv(MERGED_CSV)
@@ -28,6 +29,7 @@ for path in json_files:
             q = item.get("query")
             if q:
                 all_json_queries.add(q)
+# print(all_json_queries)
 
 final_queries = sorted(all_json_queries & csv_queries)
 

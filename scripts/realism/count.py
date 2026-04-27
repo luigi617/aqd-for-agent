@@ -1,8 +1,9 @@
 import os
 import json
 import glob
+from dataset_config import DATA_DIR
 
-INPUT_DIR = "unhelpful_data"
+INPUT_DIR = DATA_DIR
 
 def count_queries_in_file(path: str) -> tuple[int, int]:
     """
