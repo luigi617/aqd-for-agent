@@ -69,7 +69,7 @@ def generate_queries(
     prompt = prompt_node.prompt
     
     generated_queries = []
-    for _ in range(n_queries):
+    for _ in tqdm(range(n_queries), total=n_queries, desc="Generating queries..."):
         product = products[product_idx % len(products)]
         
         # this is only for experiments, deterministic attributes selection

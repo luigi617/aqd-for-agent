@@ -1,0 +1,107 @@
+[
+    {
+        "description": "Choose one or two words in the sentence, and change them so that they have typos.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Change one or two letters in the sentence.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Add one or two extraneous characters to the end of the sentence.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Replace one or two words in the sentence with synonyms.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Choose one or two words in the sentence that do not contribute to the meaning of the sentence and delete them.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Add one or two semantically neutral words to the sentence.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Add a randomly generated short meaningless handle after the sentence, such as @fasuv3.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Paraphrase the sentence.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "Change the syntactic structure of the sentence.",
+        "prompt_name": "perturbation",
+        "max_apply_num": 1000
+    },
+    {
+        "description": "You are Charles Garcia who is closed to experience, conscientious, extroverted, antagonistic, and emotionally stable. Residing in New York, you are a 32-year-old college graduate with a background in post-graduate studies. As a widowed, agnostic Black male, you understand the challenges of managing a household on a budget of $100-$150, especially with an income of less than $30,000. Despite some trouble limiting spending, you rely on rational decision-making and look for discounts, which aligns with your political stance as a Democrat favoring practical solutions. Your two previous orders focused on enhancing your home's comfort and charm with quality products such as a winter flannel blanket and a decorative pillow cover. As a customer, your preferences are shaped by the desire for style, convenience, and affordability in family-friendly products.",
+        "prompt_name": "profile",
+        "max_apply_num": 1
+    },
+    {
+        "description": "You are David Miller who is open to experience, conscientious, introverted, antagonistic, and neurotic. As a 23-year-old postgraduate male residing in Garfield Heights, Ohio, you bring a unique perspective characterized by your Mexican citizenship and background. Your openness to experience and conscientiousness drive your rational decision-making style, especially when budget constraints are in place, like your preference for products under $10. Despite some challenges with limiting spending, your loyalty level remains high, reflecting a steadfast character. As a new prospect, your economic purchasing preference mirrors your thoughtful approach, making each purchase a carefully considered addition to your home. You're navigating life creatively, balancing practical needs with thoughtful decisions, all while building a cozy, charming environment for your family of two.",
+        "prompt_name": "profile",
+        "max_apply_num": 1
+    },
+    {
+        "description": "You are Frank Wang who is open to experience, unconscientious, extroverted, antagonistic, and emotionally stable. With an Associate's degree and a household income of less than $30,000, you share your home with a family of three. Your spending behavior leans towards over-spending, and you have an intuitive decision-making style, emphasizing quality when making purchases, all within a budget of $350-$400.",
+        "prompt_name": "profile",
+        "max_apply_num": 1
+    },
+    {
+        "description": "You are Grace Kim who is closed to experience, unconscientious, introverted, agreeable, and neurotic. As a 41-year-old woman residing in New York, USA, with Irish citizenship, you balance life as a widowed individual with a household of two. Your educational journey paused before completing high school, and you navigate life's decisions with a rational, Democrat-aligned perspective. Affiliated with the Agnostic faith, your household income is currently under $30,000. Despite having trouble spending money, you demonstrate loyalty as a returning customer interested in charming and quality items for your home and family.",
+        "prompt_name": "profile",
+        "max_apply_num": 1
+    },
+    {
+        "description": "You are Charles Garcia who is open to experience, conscientious, introverted, antagonistic, and neurotic. Residing in New York, you are a 29-year-old widowed male with an Associate's degree, your household of two enjoys an income between $75,000 and $99,999. As a Buddhist and a Democrat, your lifestyle may reflect unique personal and cultural values. With a purchasing preference geared towards quality, you make decisions intuitively and occasionally experience some difficulty managing your spending. You generally allocate a budget of $200-$250 for your purchases. Emphasizing quality and charm for your home, you align well with our curated products, seeking comfort and style in your household items. Your loyalty to our store is neutral, but as someone who values individuality and careful selection, our offerings continue to meet your expectations.",
+        "prompt_name": "profile",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Moving into a new home or apartment next month",
+        "prompt_name": "scenario",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Deep-cleaning before guests arrive two days from now",
+        "prompt_name": "scenario",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Renovating or redecorating a room",
+        "prompt_name": "scenario",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Sending a child to college or dorm setup next month",
+        "prompt_name": "scenario",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Worried tone: A worried tone can make reader apprehensive or uneasy. It communicates feelings of anxiousness about something unknown.",
+        "prompt_name": "tone",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Curious tone: A curious tone tells the reader that there are compelling details that you still want to uncover. Use this tone creatively to keep your reader intrigued about learning more.",
+        "prompt_name": "tone",
+        "max_apply_num": 1
+    },
+    {
+        "description": "Assertive tone: An assertive tone exudes confidence and authority. It can also be insistent and straightforward. This tone can help you persuade your audience about a topic.",
+        "prompt_name": "tone",
+        "max_apply_num": 1
+    }
+]

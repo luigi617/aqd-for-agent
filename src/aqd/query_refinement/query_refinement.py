@@ -56,6 +56,7 @@ class QueryRefinement:
             query_node = self.modify_responses(query_node)
             pbar.update(1)
             query_node_score = query_node.get_score(self.config.preference_score_map)
+            pbar.update(1)
             
             end_time = time.perf_counter()
             query_node.set_running_time(end_time - start_time)
@@ -191,7 +192,7 @@ class QueryRefinement:
         selected_tree_nodes = [n for n in valid_nodes if n.children]
         not_selected_tree_nodes = [n for n in valid_nodes if not n.children]
 
-        beam = self.config.n_query_refiment_beam_search_size
+        beam = self.config.n_query_refinement_beam_search_size
 
         if len(selected_tree_nodes) >= beam:
             return selected_tree_nodes

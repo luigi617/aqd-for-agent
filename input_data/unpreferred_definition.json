@@ -1,0 +1,21 @@
+{
+    "partially helpful": {
+        "description": [
+            "Provides basic and expected answers without new insights (e.g., answering 'canvas' when asked about the material of high-density canvas)",
+            "Repeat information from the question without additional context. Note: This does not apply to yes/no or confirmation questions starting with Can, Is, Could, etc.",
+            "Address only part of the question or provides incomplete details (e.g., mentioning a feature without its relevance or using 'including' without listing all items)."
+        ],
+        "score": 1
+    },
+    "not helpful": {
+        "description": [
+            "Answer related but slightly deviating aspects (e.g., discusses appearance/design when the question is about comfort).",
+            "Provides general or vague, promotional, or boilerplate language without addressing the specific goal(e.g., describing an items as 'uniquely designed' without design  details).",
+            "States that details lack information without alternatives (e.g., noting missing dry cleaning details without suggesting other methods).",
+            "Provides overly general and qualitative answers without specifying quantities, materials, ingredients, entities, or specifics (e.g., stating 'safe', 'premium', or 'high-quality material' without specifying proper names of entities).",
+            "Fails to explain processes in 'how' questions or provides trivial, repetitive information.",
+            "Fails to provide a comprehensive answer to achieve the user's goal."
+        ],
+        "score": 0
+    }
+}
