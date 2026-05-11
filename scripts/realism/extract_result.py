@@ -1,4 +1,5 @@
 import json
+import os
 import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
@@ -32,20 +33,26 @@ df_extracted = pd.DataFrame(extracted)
 # -------------------------
 # Load annotation CSVs
 # -------------------------
-luigi = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_luigi.csv")
-omar  = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_omar.csv")
-lucy  = pd.read_csv(f"{ANNOTATIONS_DIR}/annotate_data_lucy.csv")
+luigi_path = f"{ANNOTATIONS_DIR}/annotate_data_luigi.csv"
+if os.path.exists(luigi_path):
+    luigi = pd.read_csv(luigi_path)[["query", "realism"]].rename(columns={"realism": "luigi_realism"})
+else:
+    luigi = df_extracted[["query"]].copy()
+    luigi["luigi_realism"] = 0
 
-# Keep only needed columns + rename
-luigi = luigi[["query", "realism"]].rename(
-    columns={"realism": "luigi_realism"}
-)
-omar = omar[["query", "realism"]].rename(
-    columns={"realism": "omar_realism"}
-)
-lucy = lucy[["query", "realism"]].rename(
-    columns={"realism": "lucy_realism"}
-)
+omar_path = f"{ANNOTATIONS_DIR}/annotate_data_omar.csv"
+if os.path.exists(omar_path):
+    omar = pd.read_csv(omar_path)[["query", "realism"]].rename(columns={"realism": "omar_realism"})
+else:
+    omar = df_extracted[["query"]].copy()
+    omar["omar_realism"] = 0
+
+lucy_path = f"{ANNOTATIONS_DIR}/annotate_data_lucy.csv"
+if os.path.exists(lucy_path):
+    lucy = pd.read_csv(lucy_path)[["query", "realism"]].rename(columns={"realism": "lucy_realism"})
+else:
+    lucy = df_extracted[["query"]].copy()
+    lucy["lucy_realism"] = 0
 
 # -------------------------
 # Merge on query

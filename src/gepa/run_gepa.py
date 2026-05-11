@@ -9,7 +9,8 @@ from src.aqd.budget import Budget
 from src.config import Config
 from src.gepa.gepa_reflect import refine_prompt
 from src.aqd.query_refinement.evaluate_responses import evaluate_responses
-from src.aqd.query_refinement.generate_response import generate_response
+from src.aqd.query_refinement.generate_response import generate_response, ResponseSchema
+from src.models.model import get_model
 from src.aqd.schema import PromptNode, QueryNode
 from src.aqd.prompt_search.generate_queries import generate_queries_baseline
 from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
@@ -30,6 +31,16 @@ class EcommerceGEPAAdapater(GEPAAdapter):
         self.budget_log_path = config.output_path.with_name('gepa_budget_log.json')
         self.save_path = save_path(config)
         self.prompt_to_node: Dict[str, PromptNode] = {}
+        self.generate_response_chain = get_model(self.config.target_model, ResponseSchema, sensitive=True, budget=self.config.budget)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['generate_response_chain']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.generate_response_chain = get_model(self.config.target_model, ResponseSchema, sensitive=True, budget=self.config.budget)
 
     def save(self):
         self.config.budget.dump(self.budget_log_path)
@@ -77,7 +88,7 @@ class EcommerceGEPAAdapater(GEPAAdapter):
         })
 
         # print('generating response...')
-        query_node.response = generate_response(query_node, self.config.target_model, self.config.budget) 
+        query_node.response = generate_response(query_node, self.config.target_model, self.config.budget, self.generate_response_chain)
 
         # print('evaluating response...')
         evaluation, reasoning, individual_evaluations = evaluate_responses(

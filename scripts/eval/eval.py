@@ -36,6 +36,7 @@ def extract_data(args):
         budget = json.load(f)
     if not budget.get("history"):
         budget["history"] = []
+    # #### legacy code
     # for item in budget["history"]:
     #     if not item.get("budget_extra_info"):
     #         continue
@@ -43,6 +44,7 @@ def extract_data(args):
     #         if product_name in item["budget_extra_info"]["desc"]:
     #             budget_for_eval.append(item)
     #             break
+    # ####
     if not budget_for_eval:
         budget_for_eval = budget["history"]
     # # save the ids to a json file
@@ -59,8 +61,14 @@ def calculate_statistics(args, data_for_eval, budget_for_eval):
     """
 
     if args.task == "real":
+        unhelpful_query_count = 0
+        for item in data_for_eval:
+            if item["label"] != "helpful":
+                unhelpful_query_count += 1
         statistics = {
-            "total_query_count": len(data_for_eval)
+            "total_query_count": len(data_for_eval),
+            "unhelpful_query_count": unhelpful_query_count,
+            "percentage_of_unhelpful_queries": unhelpful_query_count / len(data_for_eval)
         }
         with open(os.path.join(args.output_dir, "statistics.json"), "w") as f:
             json.dump(statistics, f, indent=4)

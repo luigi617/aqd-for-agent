@@ -204,8 +204,9 @@ class Config:
         if isinstance(self.budget_limit, float) and self.budget_limit >= 0:
             self.budget = Budget(limit_usd=self.budget_limit)
 
-        self.playbook = args.playbook_path.read_text(encoding="utf-8")
-        self.playbook = self.playbook.replace("\\n", "\n")
+        if args.playbook_path:
+            self.playbook = args.playbook_path.read_text(encoding="utf-8")
+            self.playbook = self.playbook.replace("\\n", "\n")
         
         self.output_path = args.output_path
     

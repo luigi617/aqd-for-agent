@@ -1,7 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.aqd.query_refinement.evaluate_responses import evaluate_responses
-from src.aqd.query_refinement.generate_response import generate_response
+from src.aqd.query_refinement.generate_response import generate_response, ResponseSchema
+from src.models.model import get_model
 from src.ace.ace import ACE
 from src.aqd.prompt_search.generate_queries import generate_queries
 from src.aqd.schema import PromptNode, QueryNode, TreeNode
@@ -12,6 +13,7 @@ class DataProcessor:
     def compute_score(self, config: Config, prompt_node: PromptNode):
         print(f"Start computing score for prompt node...")
         query_dict = {query.query_generation_extra_info["product_idx"]: query for query in prompt_node.queries}
+        generate_response_chain = get_model(config.target_model, ResponseSchema, sensitive=True, budget=config.budget)
 
         def process_one(item):
             prompt_node, product_idx = item
@@ -35,7 +37,7 @@ class DataProcessor:
             else:
                 query_node = query_dict[product_idx]
 
-            response = generate_response(query_node, config.target_model, config.budget)
+            response = generate_response(query_node, config.target_model, config.budget, generate_response_chain)
             query_node.response = response
             criteria_chosen, reason, individual_evals = evaluate_responses(
                 query_node,

@@ -17,7 +17,8 @@ from src.aqd.prompt_search.query_filter_feedback import query_filter_feedback
 from src.aqd.prompt_search.preferred_response_feedback import preferred_response_feedback
 from src.aqd.prompt_search.unpreferred_response_feedback import unpreferred_response_feedback
 from src.aqd.query_refinement.query_refinement import QueryRefinement
-
+from src.models.model import get_model
+from src.aqd.query_refinement.generate_response import ResponseSchema
 
 class PromptSearch:
     def __init__(self, config: Config, base_depth_output_path):
@@ -29,12 +30,13 @@ class PromptSearch:
         self._lock = threading.Lock()
 
 
-    def _run_single_query_refinement(self, query_node, query_tree_node):
+    def _run_single_query_refinement(self, query_node, query_tree_node, generate_response_chain):
         try:
             query_refinement = QueryRefinement(
                 query_node=query_node,
                 query_tree_node=query_tree_node,
-                config=self.config
+                config=self.config,
+                generate_response_chain=generate_response_chain
             )
             query_node_res = query_refinement.run(max_depth=self.config.n_query_refinement_iterations,
                                                     n_workers=self.config.n_thread_query_refiment)
@@ -47,7 +49,7 @@ class PromptSearch:
                 res = TreeNode(query_node)
             return e, query_node, res
 
-    def _process_node(self, tree_node: TreeNode):
+    def _process_node(self, tree_node: TreeNode, generate_response_chain):
         prompt_node: PromptNode = tree_node.value
         start_time = time.perf_counter()
         with tqdm(total=2, desc="Processing prompt refinement node", unit="step") as pbar:
@@ -56,7 +58,7 @@ class PromptSearch:
             max_workers = min(self.config.n_thread_queries, len(prompt_node.queries))
             with ThreadPoolExecutor(max_workers=max_workers) as inner_pool:
                 futures = [
-                    inner_pool.submit(self._run_single_query_refinement, q, prompt_node.query_refinement_map.get(q))
+                    inner_pool.submit(self._run_single_query_refinement, q, prompt_node.query_refinement_map.get(q), generate_response_chain)
                     for q in prompt_node.queries
                 ]
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Refining query"):
@@ -77,12 +79,13 @@ class PromptSearch:
 
         current_level = [self.root]
         depth = 0
+        generate_response_chain = get_model(self.config.target_model, ResponseSchema, sensitive=True, budget=self.config.budget)
 
         with ThreadPoolExecutor(max_workers = n_workers) as pool:
             
             while current_level:
                 allow_refine = depth < max_depth
-                futures = [pool.submit(self._process_node, node) for node in current_level]
+                futures = [pool.submit(self._process_node, node, generate_response_chain) for node in current_level]
 
                 next_level = []
                 for fut in tqdm(as_completed(futures), total=len(futures), desc=f"Prompt search: depth {depth}"):

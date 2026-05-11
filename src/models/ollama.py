@@ -35,7 +35,8 @@ def get_ollama(
             temperature=temperature,
             timeout=timeout,
             seed=SEED,
-            base_url=ollama_url
+            base_url=ollama_url,
+            keep_alive="24h"
         )
         base_prompt = ChatPromptTemplate.from_messages([("user", "{prompt}")])
         chain = base_prompt | base_llm
@@ -46,7 +47,8 @@ def get_ollama(
             temperature=temperature,
             timeout=timeout,
             seed=SEED,
-            base_url=ollama_url
+            base_url=ollama_url,
+            keep_alive="24h"
         )
 
         llm_structured = base_llm.with_structured_output(pydantic_model)

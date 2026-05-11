@@ -138,10 +138,10 @@ def evaluate_responses(
     response = query_node.response
 
     evaluations = []
-    reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3, budget=budget)
+    reason_merging_chain = get_model(generative_model_path, EvalReasonMergingSchema, retries=3, budget=budget, all_fail_raise=False)
     for model_path in evaluation_model_paths:
-        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=5, budget=budget, timeout=300)
-        
+        evaluate_response_chain = get_model(model_path, get_schema(preference_criteria_map), retries=2, budget=budget, timeout=300, all_fail_raise=False)
+
         # get violated criteria
         for _ in range(n_evaluation):
             evaluation = evaluate_response_chain(
@@ -152,7 +152,14 @@ def evaluate_responses(
                 ),
                 budget_extra_info={"desc": f"Evaluate response: {response}"}
             )
+            if evaluation is None:
+                print(f"[WARN] Evaluation failed for model {model_path}, skipping.")
+                continue
             evaluations.append(evaluation)
+
+    if not evaluations:
+        print("[WARN] All evaluations failed. Returning empty criteria and reasoning.")
+        return [], "", []
 
     criteria_count = defaultdict(int)
     for evaluation in evaluations:
@@ -173,13 +180,14 @@ def evaluate_responses(
     all_reasoning = "\n".join([f"- {evaluation['reasoning']}" for evaluation in evaluations])
     final_selected_criteria_str = "\n".join([f"key = {preference_criteria_to_key_map[criterion]}, value = {criterion}" for _, criterion in chosen_criteria])
 
-    reasoning = reason_merging_chain(
+    merged = reason_merging_chain(
         MERGE_REASONING_PROMPT.format(
             final_criteria=final_selected_criteria_str,
             explanations=all_reasoning,
         ),
         budget_extra_info={"desc": f"Merge evaluation reasoning"}
-    )["reasoning"]
+    )
+    reasoning = merged["reasoning"] if merged is not None else ""
 
 
     return chosen_criteria, reasoning, evaluations

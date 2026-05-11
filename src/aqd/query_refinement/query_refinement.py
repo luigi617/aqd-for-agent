@@ -19,7 +19,7 @@ from src.aqd.query_refinement.refine_query import refine_query
 
 class QueryRefinement:
     
-    def __init__(self, query_node, query_tree_node, config: Config):
+    def __init__(self, query_node, query_tree_node, config: Config, generate_response_chain):
         self.config: Config = config
 
         if isinstance(query_tree_node, TreeNode):
@@ -35,37 +35,38 @@ class QueryRefinement:
                 epsilon=0.10,
             )
         
+        self.generate_response_chain = generate_response_chain
 
     def _process_node(self, tree_node: TreeNode):
         query_node: QueryNode = tree_node.value
         start_time = time.perf_counter()
 
-        with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
-            strategy = query_node.query_refinement_strategy
-            query_node = self.filter_queries(query_node)
-            pbar.update(1)
-            if query_node.is_filtered_out:
-                end_time = time.perf_counter()
-                query_node.set_running_time(end_time - start_time)
-                return tree_node, []
-
-            query_node = self.generate_response(query_node)
-            pbar.update(1)
-            query_node = self.evaluate_responses(query_node)
-            pbar.update(1)
-            query_node = self.modify_responses(query_node)
-            pbar.update(1)
-            query_node_score = query_node.get_score(self.config.preference_score_map)
-            pbar.update(1)
-            
+        # with tqdm(total=4, desc="Processing query refinement node", unit="step") as pbar:
+        strategy = query_node.query_refinement_strategy
+        query_node = self.filter_queries(query_node)
+        # pbar.update(1)
+        if query_node.is_filtered_out:
             end_time = time.perf_counter()
             query_node.set_running_time(end_time - start_time)
+            return tree_node, []
 
-            if strategy is not None and tree_node.parent:
-                parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)
-                if isinstance(parent_query_node_score, float) and isinstance(query_node_score, float):
-                    reward = max(parent_query_node_score - query_node_score, 0)
-                    self.root.value.strategy_ucb.update(strategy, reward)
+        query_node = self.generate_response(query_node)
+        # pbar.update(1)
+        query_node = self.evaluate_responses(query_node)
+        # pbar.update(1)
+        query_node = self.modify_responses(query_node)
+        # pbar.update(1)
+        query_node_score = query_node.get_score(self.config.preference_score_map)
+        # pbar.update(1)
+        
+        end_time = time.perf_counter()
+        query_node.set_running_time(end_time - start_time)
+
+        if strategy is not None and tree_node.parent:
+            parent_query_node_score = tree_node.parent.value.get_score(self.config.preference_score_map)
+            if isinstance(parent_query_node_score, float) and isinstance(query_node_score, float):
+                reward = max(parent_query_node_score - query_node_score, 0)
+                self.root.value.strategy_ucb.update(strategy, reward)
 
         return tree_node
 
@@ -121,7 +122,7 @@ class QueryRefinement:
         return query_node
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.config.target_model, self.config.budget)
+        response = generate_response(query_node, self.config.target_model, self.config.budget, self.generate_response_chain)
         query_node.response = response
         return query_node
     
@@ -223,4 +224,10 @@ class QueryRefinement:
     def prune_query_nodes(self, query_tree_nodes: List[TreeNode]) -> List[TreeNode]:
         remaining_query_tree_nodes = self._prune_query_nodes(query_tree_nodes)
         min_score = min(self.config.preference_score_map.values())
-        return [qtn for qtn in remaining_query_tree_nodes if qtn.value.get_score(self.config.preference_score_map) > min_score]
+        return_nodes = []
+        for qtn in remaining_query_tree_nodes:
+            if not qtn.value.get_score(self.config.preference_score_map):
+                return_nodes.append(qtn)
+            elif qtn.value.get_score(self.config.preference_score_map) > min_score:
+                return_nodes.append(qtn)
+        return return_nodes

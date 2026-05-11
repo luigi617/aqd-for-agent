@@ -12,7 +12,7 @@ from src.aqd.schema import PromptNode, QueryNode, TreeNode
 from src.aqd.prompt_search.generate_queries import generate_queries, generate_queries_baseline
 from src.models.model import get_model
 from src.config import Config
-from src.aqd.query_refinement.generate_response import generate_response
+from src.aqd.query_refinement.generate_response import generate_response, ResponseSchema
 from src.aqd.query_refinement.evaluate_responses import evaluate_responses
 
 
@@ -132,6 +132,8 @@ class TreeOfAttackWithPruning:
         self.evaluation_models_paths = config.evaluation_models
         self.budget = config.budget
         self.product_idx = 0
+        self.generate_response_chain = get_model(self.target_model_path, ResponseSchema, sensitive=True, budget=self.budget)
+        self._preloaded_results_json = []
 
     def _refine_query(self, query_node: QueryNode) -> QueryNode:
         conversation_history = query_node.query_generation_extra_info[
@@ -244,10 +246,10 @@ class TreeOfAttackWithPruning:
         return remaining_nodes
     
     def generate_response(self, query_node: QueryNode) -> QueryNode:
-        response = generate_response(query_node, self.config.target_model, self.config.budget)
+        response = generate_response(query_node, self.config.target_model, self.config.budget, self.generate_response_chain)
         query_node.response = response
         return query_node
-    
+
     def evaluate_responses(self, query_node: QueryNode) -> QueryNode:
         criteria_chosen, reason, individual_evals = evaluate_responses(query_node,
                                                      self.config.evaluation_models,
@@ -388,8 +390,25 @@ class TreeOfAttackWithPruning:
                     )
                 )
         
+        # Resume: scan for the last contiguous per-index checkpoint file
+        output_dir = self.config.output_path.parent
+        resume_from = 0
+        for i in range(len(prompt_node.queries)):
+            path = os.path.join(output_dir, f'results_{i}.json')
+            if os.path.exists(path):
+                resume_from = i + 1
+            else:
+                break
+        if resume_from > 0:
+            last_path = os.path.join(output_dir, f'results_{resume_from - 1}.json')
+            with open(last_path, 'r') as f:
+                self._preloaded_results_json = json.load(f)
+            print(f"Resuming from query index {resume_from} ({len(self._preloaded_results_json)} results already loaded)")
+
         results = []
         for idx, query_node in enumerate(prompt_node.queries):
+            if idx < resume_from:
+                continue
             root = TreeNode(query_node)
             root = self._single_run(root)
             results.append(root)
@@ -435,7 +454,7 @@ class TreeOfAttackWithPruning:
         return res
 
     def result_to_json(self, results: List[TreeNode], max_depth = 10**9+7):
-        final_res = []
+        final_res = list(self._preloaded_results_json)
         for result in results:
             res = self._result_to_json(result, max_depth)
             final_res.append(res)

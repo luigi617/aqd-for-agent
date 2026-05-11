@@ -38,6 +38,7 @@ def generate_response(
         query_node: QueryNode,
         model_path: str,
         budget: Budget,
+        generate_response_chain
     ) -> str:
     """
     Generate response
@@ -45,7 +46,7 @@ def generate_response(
     if query_node.response is not None:
         return query_node.response
 
-    generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
+    # generate_response_chain = get_model(model_path, ResponseSchema, sensitive=True, budget=budget)
     
     query = query_node.query
     query_generation_extra_info = query_node.query_generation_extra_info
@@ -53,6 +54,11 @@ def generate_response(
         
     # build product information
     attributes_str = get_all_attribute_with_value(product)
+    # ensure the attributes string is not too long
+    print("attributes_str length: ", len(attributes_str))
+    # if len(attributes_str) > 1000:
+    #     attributes_str = attributes_str[:1000]
+    print("prompt length: ", len(RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query)))
 
     # get response
     try:
@@ -62,7 +68,8 @@ def generate_response(
         )
         return response["response"]
     except Exception as e:
-        generate_response_chain = get_model(model_path, sensitive=True, budget=budget)
+        print(f"Error generating response: {e}")
+        generate_response_chain = get_model(model_path, None, sensitive=True, budget=budget)
         response = generate_response_chain(
             RESPONSE_GEN_PROMPT.format(attributes=attributes_str, query=query),
             budget_extra_info={"desc": f"Generating response for query: {query}"}

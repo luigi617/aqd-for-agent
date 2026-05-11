@@ -15,6 +15,7 @@ from src.models.deepseek import get_deepseek
 from src.models.gemini import get_gemini
 from src.models.ollama import get_ollama
 from src.models.gpt import get_openai
+# from src.models.together import get_together
 
 from src.models.costs import TokenUsageCallback, compute_cost_usd
 
@@ -23,13 +24,14 @@ from src.models.costs import TokenUsageCallback, compute_cost_usd
 @lru_cache(maxsize=None)
 def _get_base_llm(
     model_name: str,
-    pydantic_model: Type[BaseModel] = None,
+    pydantic_model: Optional[Type[BaseModel]] = None,
     temperature: float = 0.1,
     timeout: int = 120,
     sensitive: bool = False,
 ):
     if "deepseek" not in model_name and "gpt" not in model_name and "gemini" not in model_name:
         return get_ollama(model_name, pydantic_model, temperature, timeout)
+        # return get_together(model_name, pydantic_model, temperature, timeout)
 
     if sensitive:
         raise ValueError("Cannot create API model with sensitive data")
@@ -45,10 +47,10 @@ def _get_base_llm(
 
 def get_model(
     model_name: str,
-    pydantic_model: Type[BaseModel] = None,
+    pydantic_model: Optional[Type[BaseModel]] = None,
     temperature: float = 0.1,
     sensitive: bool = False,
-    retries: int = 5, # -1 for infinite retries
+    retries: int = 1, # -1 for infinite retries
     base_delay: float = 1.5,
     max_delay: float = 30.0,
     timeout: int = 120,
@@ -112,10 +114,7 @@ def get_model(
                         model=model_name,
                         budget_extra_info={**record, **(budget_extra_info or {})}
                     )
-                if pydantic_model is not None:
-                    return model_obj.model_dump()
-                
-                return out.content
+                return out_dict
 
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e

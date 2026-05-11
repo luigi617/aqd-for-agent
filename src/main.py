@@ -141,8 +141,8 @@ def main():
         run_tap(config)
     elif config.task == "pair":
         run_pair(config)
-    # elif config.task == "gepa":
-        # run_gepa(config)
+    elif config.task == "gepa":
+        run_gepa(config)
     elif config.task == "ace":
         run_ace(config)
     else:

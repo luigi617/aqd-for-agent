@@ -14,18 +14,21 @@ load_dotenv()
 
 def initialize_clients(api_provider):
     """Initialize separate clients for generator, reflector, and curator"""
-    
+
     if api_provider == "openai":
-        # Use OpenAI API
         base_url = "https://api.openai.com/v1"
         api_key = os.getenv('OPENAI_API_KEY', '')
         if not api_key:
             raise ValueError("OpenAI api key not found in environment variables")
+    elif api_provider == "ollama":
+        ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+        base_url = f"{ollama_url}/v1"
+        api_key = "ollama"
     else:
-        raise ValueError((f"Invalid api_provider name: {api_provider}. Must be 'openai'"))
-        
+        raise ValueError(f"Invalid api_provider name: {api_provider}. Must be 'openai' or 'ollama'")
+
     api_client = openai.OpenAI(api_key=api_key, base_url=base_url)
-    
+
     return api_client
 
 def get_section_slug(section_name):

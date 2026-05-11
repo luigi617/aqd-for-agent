@@ -58,7 +58,11 @@ class ACE:
         """
         self.config = config
 
-        self.api_provider = "openai"
+        generate_model = config.generate_model
+        if any(kw in generate_model for kw in ("deepseek", "gpt", "gemini")):
+            self.api_provider = "openai"
+        else:
+            self.api_provider = "ollama"
         api_client = initialize_clients(self.api_provider)
         # Initialize the three agents
         self.generator = Generator(api_client, self.api_provider, self.config)
