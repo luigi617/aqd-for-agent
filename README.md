@@ -1,8 +1,7 @@
 # PQR: A Framework to Generate Diverse and Realistic User Queries that Elicit QA Agent Failures
 
 This repo implements **PQR** (Prompt–Query-Refinement), plus the four baselines it is
-compared against in the paper (GEPA, ACE, PAIR, TAP), and the evaluation pipeline used
-to produce Tables 1–2 and Appendix E/Tables 5–8.
+compared against in the paper (GEPA, ACE, PAIR, TAP), and the evaluation pipeline.
 
 At a high level, running an experiment always looks like:
 
