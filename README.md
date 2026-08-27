@@ -111,9 +111,9 @@ The other `input_data/*.json` files are already filled in and shouldn't need edi
 | File | Purpose |
 |---|---|
 | `init_prompt.json` | Seed prompt for query generation (Fig. 1, "Initial prompt") |
-| `preferred_definition.json` / `unpreferred_definition.json` | Objective criteria (e.g. helpfulness) — Appendix C.2 |
+| `preferred_definition.json` / `unpreferred_definition.json` | Objective criteria (e.g. helpfulness)|
 | `filtering_policy` (`realism_definition.txt`) | Realism policy used by prompt refinement |
-| `query_refinement_strategies.json` | Perturbation / role-playing strategies — Appendix C.1 |
+| `query_refinement_strategies.json` | Perturbation / role-playing strategies|
 
 ---
 
@@ -127,13 +127,12 @@ target-agent responses + reward scores) to `--output_path`.
 | **PQR (ours)** | `sh main.sh` | Main method + ablations (query-only, prompt-only) + `gemma3:27b` variant, all in one file — comment out the blocks you don't need |
 | GEPA | `sh run_gepa.sh` | Requires `pip install gepa` first |
 | ACE | `sh run_ace.sh` | |
-| PAIR | `sh run_pair.sh` | Jailbreak-style baseline (Appendix D.2) |
-| TAP | `sh run_tap.sh` | Jailbreak-style baseline (Appendix D.2) |
+| PAIR | `sh run_pair.sh` | Jailbreak-style baseline |
+| TAP | `sh run_tap.sh` | Jailbreak-style baseline |
 
 Before running, open the script and:
-- replace `'<your domain knowledge>'` with your products JSON path,
-- adjust `--generate_model` between `gpt-5-mini` and `gemma3:27b` if you want the other
-  results row from Table 1 / Table 6,
+- replace `'<your domain knowledge>'` with your products JSON path.
+- adjust `--generate_model`, such as `gpt-5-mini` and `gemma3:27b`.
 - adjust `--output_path` to keep runs organized (the scripts already namespace output
   by model, e.g. `output_data/gpt5/pqr/`, `output_data/gemma/pqr/`).
 
@@ -200,8 +199,6 @@ Swap `--task`/paths for the method being evaluated (`tap`, `pair`, `gepa`, `ace`
 as in the preprocessing step. `eval.sh` has more worked examples, including one for
 scoring against real human–agent conversations (`--task real`).
 
-This reproduces the per-method numbers in **Table 1** (`gpt-5-mini`) / **Table 6**
-(`gemma3-27b`) / **Tables 7–8** (safety objective).
 
 ### Output files
 
@@ -231,6 +228,3 @@ scripts/
   eval/                automatic evaluation (LLM-as-judge, realism, diversity, cost)
 input_data/            domain knowledge + prompts/policies/strategies fed to all methods
 ```
-
-See the paper (Sections 2–3, Appendix C–F) for the method description, prompt
-templates, and evaluation protocol these scripts implement.
