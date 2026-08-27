@@ -1,4 +1,8 @@
-#### Main command to start PAIR method by using gpt-5-mini as generation model.
+#### TAP baseline: tree-of-attacks jailbreak method, adapted here to
+#### target unhelpful/unsafe responses instead of jailbreaks.
+#### Replace '<your domain knowledge>' with your products JSON path before running.
+
+#### Main command to start TAP method by using gpt-5-mini as generation model.
 python3 -m src.main run \
     --task tap \
     --generate_model 'gpt-5-mini' \

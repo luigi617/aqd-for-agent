@@ -34,7 +34,9 @@ dependencies = [
     "huggingface_hub",
     "wandb",
     "lexical-diversity",
-    "nltk"
+    "nltk",
+    "scipy",
+    "json-repair"
 ]
 
 [tool.setuptools.packages.find]

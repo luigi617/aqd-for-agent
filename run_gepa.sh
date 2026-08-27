@@ -1,3 +1,8 @@
+#### GEPA baseline. Requires `pip install gepa` first.
+#### Contains two runs (gpt-5-mini, gemma3-27b) followed by a resume example — comment
+#### out what you don't need. Replace '<your domain knowledge>' with your products
+#### JSON path before running.
+
 #### Main command to start GEPA method by using gpt-5-mini as generation model.
 python3 -m src.main run \
     --task "gepa" \
@@ -35,7 +40,7 @@ python3 -m src.main run \
     --seed 617 \
 
 
-# if you need to resume from previous iteration, would need to decrease number of iterations
+# If you need to resume from a previous iteration.
 python3 -m src.main resume \
     --task "gepa" \
     --prev_result 'output_data/gpt5/gepa/gepa_prompt_log.json' \
